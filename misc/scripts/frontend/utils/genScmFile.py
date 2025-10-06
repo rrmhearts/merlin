@@ -1,5 +1,9 @@
-import os,sys,glob
+import os, sys
+import glob
+import re
 import collections
+
+from enum import Enum
 
 def readtext(fname):
     f = open(fname, 'r')
@@ -42,27 +46,17 @@ def create_dictionary_from_txt_file(txt_file):
 
     return utt_text
 
-if __name__ == "__main__":
-
-    if len(sys.argv)!=5:
-        print('Usage: python genScmFile.py <in_txt_dir/in_txt_file> <out_utt_dir> <out_scm_file> <out_file_id_list>')
-        sys.exit(1)
-
-    out_utt_dir  = sys.argv[2]
-    out_scm_file = sys.argv[3]
-    out_id_file  = sys.argv[4]
+def generateScmFile(in_txt_file, out_utt_dir, out_scm_file, out_id_file):
 
     if not os.path.exists(out_utt_dir):
         os.makedirs(out_utt_dir)
 
-    if os.path.isdir(sys.argv[1]):
+    if os.path.isdir(in_txt_file):
         print("creating a scheme file from text directory")
-        in_txt_dir = sys.argv[1]
-        utt_text   = create_dictionary_from_txt_dir(in_txt_dir)
+        utt_text   = create_dictionary_from_txt_dir(in_txt_file)
 
-    elif os.path.isfile(sys.argv[1]):
+    elif os.path.isfile(in_txt_file):
         print("creating a scheme file from text file")
-        in_txt_file = sys.argv[1]
         utt_text    = create_dictionary_from_txt_file(in_txt_file)
 
     sorted_utt_text = collections.OrderedDict(sorted(utt_text.items()))
@@ -71,13 +65,29 @@ if __name__ == "__main__":
     out_f2 = open(out_id_file, 'w')
 
     ### if you want to use a particular voice
-    #out_f1.write("(voice_cstr_edi_fls_multisyn)\n")
+    print("Using English voice..")
+    out_f1.write("(voice_cmu_us_aew_arctic)\n")
 
     for utt_name, sentence in sorted_utt_text.items():
         out_file_name = os.path.join(out_utt_dir, utt_name+'.utt')
         sentence = sentence.replace('"', '\\"')
         out_f1.write("(utt.save (utt.synth (Utterance Text \""+sentence+"\" )) \""+out_file_name+"\")\n")
         out_f2.write(utt_name+"\n")
+        # out_f1.write("(symbol-value current-voice)\n")
+        print(f"writing {utt_name} to file {out_id_file}") # need for speed
 
     out_f1.close()
     out_f2.close()
+
+if __name__ == "__main__":
+
+    if len(sys.argv)!=5:
+        print('Usage: python genScmFile.py <in_txt_dir/in_txt_file> <out_utt_dir> <out_scm_file> <out_file_id_list>')
+        sys.exit(1)
+
+    in_txt_file  = sys.argv[1]
+    out_utt_dir  = sys.argv[2]
+    out_scm_file = sys.argv[3]
+    out_id_file  = sys.argv[4]
+
+    generateScmFile(in_txt_file, out_utt_dir, out_scm_file, out_id_file)

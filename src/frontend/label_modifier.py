@@ -1,7 +1,10 @@
 
 import os
 import numpy, re, sys
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 
 import logging
 # from logplot.logging_plotting import LoggerPlotter #, MultipleTimeSeriesPlot, SingleWeightMatrixPlot

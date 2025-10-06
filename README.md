@@ -9,7 +9,7 @@ Edinburgh.
 Merlin is a toolkit for building Deep Neural Network models for statistical parametric speech synthesis. 
 It must be used in combination with a front-end text processor (e.g., Festival) and a vocoder (e.g., STRAIGHT or WORLD).
 
-The system is written in Python and relies on the Theano numerical computation library.
+The system is written in Python and relies on Keras.
 
 Merlin comes with recipes (in the spirit of the [Kaldi](https://github.com/kaldi-asr/kaldi) automatic speech recognition toolkit) to show you how to build state-of-the art systems.
 
@@ -17,7 +17,7 @@ Merlin is free software, distributed under an Apache License Version 2.0, allowi
 
 Read the documentation at [cstr-edinburgh.github.io/merlin](https://cstr-edinburgh.github.io/merlin/).
 
-Merlin is compatible with: __Python 2.7-3.6__.
+Merlin is compatible with: __Python 3.10__.
 
 Installation
 ------------
@@ -27,7 +27,7 @@ Merlin uses the following dependencies:
 - numpy, scipy
 - matplotlib
 - bandmat
-- theano
+- keras
 - tensorflow (optional, required if you use tensorflow models)
 - sklearn, keras, h5py (optional, required if you use keras models)
 

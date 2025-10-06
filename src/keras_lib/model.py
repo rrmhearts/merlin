@@ -37,16 +37,15 @@
 #  THIS SOFTWARE.
 ################################################################################
 
-import random
+import os
 import numpy as np
 
-import keras
 from keras.models import Sequential
 from keras.models import model_from_json
 from keras.layers import Dense, SimpleRNN, GRU, LSTM
 from keras.layers import Dropout
 
-class kerasModels(object):
+class KerasModels(object):
 
     def __init__(self, n_in, hidden_layer_size, n_out, hidden_layer_type, output_type='linear', dropout_rate=0.0, loss_function='mse', optimizer='adam'):
         """ This function initialises a neural network
@@ -99,7 +98,7 @@ class kerasModels(object):
             self.model.add(Dropout(self.dropout_rate))
 
         # add output layer
-        self.final_layer = self.model.add(Dense(
+        self.model.add(Dense(
             units=self.n_out,
             activation=self.output_type.lower(),
             kernel_initializer="normal",
@@ -148,7 +147,7 @@ class kerasModels(object):
                         input_shape=(None, input_size)))
 
         # add output layer
-        self.final_layer = self.model.add(Dense(
+        self.model.add(Dense(
             units=self.n_out,
             input_dim=self.hidden_layer_size[-1],
             kernel_initializer='normal',
@@ -172,7 +171,7 @@ class kerasModels(object):
             else:
                 input_size = self.hidden_layer_size[i - 1]
 
-            if hidden_layer_type[i]=='lstm':
+            if self.hidden_layer_type[i]=='lstm':
                 self.model.add(LSTM(
                         units=self.hidden_layer_size[i],
                         batch_input_shape=(batch_size, timesteps, input_size),
@@ -193,7 +192,7 @@ class kerasModels(object):
                         batch_input_shape=(batch_size, timesteps, input_size)))
 
         # add output layer
-        self.final_layer = self.model.add(Dense(
+        self.model.add(Dense(
             units=self.n_out,
             input_dim=self.hidden_layer_size[-1],
             kernel_initializer='normal',
@@ -212,6 +211,11 @@ class kerasModels(object):
             json_file.write(model_json)
         # serialize weights to HDF5
         self.model.save_weights(h5_model_file)
+
+        ## Save Keras 3 version too!
+        keras_model_file = os.path.splitext(h5_model_file)[0] + '.keras'
+        if not os.path.exists(keras_model_file):
+            self.model.save(keras_model_file)
         print("Saved model to disk")
 
     def load_model(self, json_model_file, h5_model_file):
@@ -222,7 +226,20 @@ class kerasModels(object):
         loaded_model = model_from_json(loaded_model_json)
         loaded_model.load_weights(h5_model_file)
         print("Loaded model from disk")
+        ## ValueError: Weights for model sequential have not yet been created. 
+        ##             Weights are created when the Model is first called on inputs or 
+        ##             `build()` is called with an `input_shape`.
+        # Save in Keras 3 format!
+        # keras_model_file = os.path.splitext(h5_model_file)[0] + '.keras'
+        # if not os.path.exists(keras_model_file):
+        #     self.model.save(keras_model_file)
 
         #### compile the model ####
         self.model = loaded_model
         self.compile_model()
+
+        keras_model_export_file = json_model_file.rpartition('.')[0] + '_export'
+        if not os.path.exists(keras_model_export_file):
+            self.model.save(keras_model_export_file, save_format='tf')
+
+            

@@ -1,223 +1,224 @@
 #!/bin/bash
 
-if test "$#" -ne 1; then
-    echo "Usage: ./scripts/prepare_config_files_for_synthesis.sh conf/global_settings.cfg"
-    exit 1
-fi
+# --- Configuration ---
+GLOBAL_CONFIG="$1"
+SCRIPT_NAME=$(basename "$0")
 
-if [ ! -f $1 ]; then
-    echo "Global config file doesn't exist"
-    exit 1
-else
-    source $1
-fi
-
+# --- Source Utility Functions & SED check ---
 SED=sed
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  which gsed > /dev/null
-  if [[ "$?" != 0 ]]; then
-    echo "You need to install GNU sed with 'brew install gnu-sed' on osX"
+source "$(dirname "$0")/config_utils.sh" || error_exit "Failed to source config_utils.sh"
+
+# --- Argument Validation ---
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: ./${SCRIPT_NAME} conf/global_settings.cfg"
+  exit 1
+fi
+
+if [[ ! -f "${GLOBAL_CONFIG}" ]]; then
+  error_exit "Global config file '${GLOBAL_CONFIG}' does not exist."
+fi
+
+# --- Load Global Configuration ---
+source "$(dirname "$0")/../../.env"
+source "${GLOBAL_CONFIG}" || error_exit "Failed to source global config file."
+
+# --- Configuration File Generation ---
+
+# --- Duration Configuration ---
+
+duration_config_file="conf/test_dur_synth_${Voice}.conf"
+duration_demo_config="$WorkDir/conf/general/duration_demo.conf"
+duration_merlin_config="$MerlinDir/misc/recipes/duration_demo.conf"
+
+# Copy base configuration
+if [[ -f "${duration_demo_config}" ]]; then
+  cp -f "${duration_demo_config}" "${duration_config_file}"
+else
+  cp -f "${duration_merlin_config}" "${duration_config_file}"
+fi
+
+# Apply duration-specific substitutions
+apply_sed_substitutions "${duration_config_file}" \
+  'Merlin:.*' "Merlin: ${MerlinDir}" \
+  'TOPLEVEL:.*' "TOPLEVEL: ${WorkDir}" \
+  'work:.*' "work: %(TOPLEVEL)s/experiments/${Voice}/duration_model" \
+  'file_id_list:.*' "file_id_list: %(data)s/${FileIDList}" \
+  'test_id_list\s*:.*' "test_id_list: %(TOPLEVEL)s/experiments/${Voice}/test_synthesis/test_id_list.scp" \
+  "silence_pattern:.*" "silence_pattern: ['*-${SilencePhone}+*']" \
+  'label_type:.*' "label_type: ${Labels}" \
+  'label_align\s*:.*' "label_align: %(TOPLEVEL)s/experiments/${Voice}/test_synthesis/prompt-lab" \
+  'question_file_name\s*:.*' "question_file_name: %(Merlin)s/misc/questions/${QuestionFile}" \
+  'test_synth_dir\s*:.*' "test_synth_dir: %(TOPLEVEL)s/experiments/${Voice}/test_synthesis/gen-lab" \
+  'train_file_number\s*:.*' "train_file_number: ${Train}" \
+  'valid_file_number\s*:.*' "valid_file_number: ${Valid}" \
+  'test_file_number\s*:.*' "test_file_number: ${Test}" \
+  'DurationModel\s*:.*' 'DurationModel: True' \
+  'GenTestList\s*:.*' 'GenTestList: True' \
+  'NORMLAB\s*:.*' 'NORMLAB: True' \
+  'MAKEDUR\s*:.*' 'MAKEDUR: False' \
+  'MAKECMP\s*:.*' 'MAKECMP: False' \
+  'NORMCMP\s*:.*' 'NORMCMP: False' \
+  'TRAINDNN\s*:.*' 'TRAINDNN: False' \
+  'CALMCD\s*:.*' 'CALMCD: False' \
+  'DNNGEN\s*:.*' 'DNNGEN: True'
+
+# Output-specific duration settings
+case "${Labels}" in
+  state_align)
+    ${SED} -i 's#dur\s*:.*#dur: 5#' "${duration_config_file}"
+    ;;
+  phone_align)
+    ${SED} -i 's#dur\s*:.*#dur: 1#' "${duration_config_file}"
+    ;;
+  *)
+    echo "ERROR: These labels (${Labels}) are not supported. Use state_align or phone_align!!" >&2
     exit 1
-  fi
-  SED=gsed
+    ;;
+esac
+
+# Architecture-specific duration settings
+if [[ "${Voice}" == *"demo"* ]]; then
+  apply_sed_substitutions "${duration_config_file}" \
+    'hidden_layer_size\s*:.*' 'hidden_layer_size: [512, 512, 512, 512]' \
+    "hidden_layer_type\s*:.*" "hidden_layer_type: [''TANH'', ''TANH'', ''TANH'', ''TANH'']"
 fi
 
 
-#########################################
-######## duration config file ###########
-#########################################
+echo "Duration configuration settings stored in ${duration_config_file}"
 
-duration_config_file=conf/test_dur_synth_${Voice}.conf
+# --- Acoustic Configuration ---
 
-# Start with a general recipe...
-cp -f $MerlinDir/misc/recipes/duration_demo.conf $duration_config_file
+acoustic_config_file="conf/test_synth_${Voice}.conf"
+acoustic_demo_config="$WorkDir/conf/general/acoustic_demo.conf"
+acoustic_merlin_config="$MerlinDir/misc/recipes/acoustic_demo.conf"
 
-# ... and modify it:
-
-$SED -i s#'Merlin:.*'#'Merlin: '$MerlinDir# $duration_config_file
-$SED -i s#'TOPLEVEL:.*'#'TOPLEVEL: '${WorkDir}# $duration_config_file
-$SED -i s#'work:.*'#'work: %(TOPLEVEL)s/experiments/'${Voice}'/duration_model'# $duration_config_file
-
-$SED -i s#'file_id_list:.*'#'file_id_list: %(data)s/'${FileIDList}# $duration_config_file
-$SED -i s#'test_id_list\s*:.*'#'test_id_list: %(TOPLEVEL)s/experiments/'${Voice}'/test_synthesis/test_id_list.scp'# $duration_config_file
-
-
-# [Labels]
-$SED -i s#"silence_pattern:.*"#"silence_pattern: ['*-"${SilencePhone}"+*']"# $duration_config_file
-$SED -i s#'label_type:.*'#'label_type: '${Labels}# $duration_config_file
-$SED -i s#'label_align\s*:.*'#'label_align: %(TOPLEVEL)s/experiments/'${Voice}'/test_synthesis/prompt-lab'# $duration_config_file
-$SED -i s#'question_file_name\s*:.*'#'question_file_name: %(Merlin)s/misc/questions/'${QuestionFile}# $duration_config_file
-
-
-# [Outputs]
-
-if [ "$Labels" == "state_align" ]
-then
-    $SED -i s#'dur\s*:.*'#'dur: 5'# $duration_config_file
-elif [ "$Labels" == "phone_align" ]
-then
-    $SED -i s#'dur\s*:.*'#'dur: 1'# $duration_config_file
+# Copy base configuration
+if [[ -f "${acoustic_demo_config}" ]]; then
+  cp -f "${acoustic_demo_config}" "${acoustic_config_file}"
 else
-    echo "These labels ($Labels) are not supported as of now...please use state_align or phone_align!!"
+  cp -f "${acoustic_merlin_config}" "${acoustic_config_file}"
 fi
 
+# Apply acoustic-specific substitutions
+apply_sed_substitutions "${acoustic_config_file}" \
+  'Merlin\s*:.*' "Merlin: ${MerlinDir}" \
+  'TOPLEVEL\s*:.*' "TOPLEVEL: ${WorkDir}" \
+  'work\s*:.*' "work: %(TOPLEVEL)s/experiments/${Voice}/acoustic_model" \
+  'file_id_list\s*:.*' "file_id_list: %(data)s/${FileIDList}" \
+  'test_id_list\s*:.*' "test_id_list: %(TOPLEVEL)s/experiments/${Voice}/test_synthesis/test_id_list.scp" \
+  "silence_pattern:.*" "silence_pattern: ['*-${SilencePhone}+*']" \
+  'enforce_silence\s*:.*' 'enforce_silence: True' \
+  'label_type\s*:.*' "label_type: ${Labels}" \
+  'label_align\s*:.*' "label_align: %(TOPLEVEL)s/experiments/${Voice}/test_synthesis/gen-lab" \
+  'question_file_name\s*:.*' "question_file_name: %(Merlin)s/misc/questions/${QuestionFile}" \
+  'mgc\s*:.*' 'mgc: 60' \
+  'dmgc\s*:.*' 'dmgc: 180' \
+  'lf0\s*:.*' 'lf0: 1' \
+  'dlf0\s*:.*' 'dlf0: 3' \
+  'test_synth_dir\s*:.*' "test_synth_dir: %(TOPLEVEL)s/experiments/${Voice}/test_synthesis/wav" \
+  'vocoder_type\s*:.*' "vocoder_type: ${Vocoder}" \
+  'samplerate\s*:.*' "samplerate: ${SamplingFreq}" \
+  'train_file_number\s*:.*' "train_file_number: ${Train}" \
+  'valid_file_number\s*:.*' "valid_file_number: ${Valid}" \
+  'test_file_number\s*:.*' "test_file_number: ${Test}" \
+  'AcousticModel\s*:.*' 'AcousticModel: True' \
+  'GenTestList\s*:.*' 'GenTestList: True' \
+  'MAKECMP\s*:.*' 'MAKECMP: False' \
+  'NORMCMP\s*:.*' 'NORMCMP: False' \
+  'TRAINDNN\s*:.*' 'TRAINDNN: False' \
+  'CALMCD\s*:.*' 'CALMCD: False'
 
-# [Waveform]
+# Label-specific acoustic settings
+case "${Labels}" in
+  state_align)
+    ${SED} -i 's#subphone_feats\s*:.*#subphone_feats: full#' "${acoustic_config_file}"
+    ;;
+  phone_align)
+    ${SED} -i 's#subphone_feats\s*:.*#subphone_feats: coarse_coding#' "${acoustic_config_file}"
+    ;;
+  *)
+    echo "ERROR: These labels (${Labels}) are not supported. Use state_align or phone_align!!" >&2
+    exit 1
+    ;;
+esac
 
-$SED -i s#'test_synth_dir\s*:.*'#'test_synth_dir: %(TOPLEVEL)s/experiments/'${Voice}'/test_synthesis/gen-lab'# $duration_config_file
+# Vocoder-specific acoustic settings
+case "${Vocoder}" in
+  STRAIGHT)
+    apply_sed_substitutions "${acoustic_config_file}" \
+      'bap\s*:.*' 'bap: 25' \
+      'dbap\s*:.*' 'dbap: 75'
+    ;;
+  WORLD)
+    case "${SamplingFreq}" in
+      16000)
+        apply_sed_substitutions "${acoustic_config_file}" \
+          'bap\s*:.*' 'bap: 1' \
+          'dbap\s*:.*' 'dbap: 3'
+        ;;
+      48000)
+        apply_sed_substitutions "${acoustic_config_file}" \
+          'bap\s*:.*' 'bap: 5' \
+          'dbap\s*:.*' 'dbap: 15'
+        ;;
+      *)
+        echo "ERROR: Unsupported SamplingFreq (${SamplingFreq}) for Vocoder WORLD." >&2
+        exit 1
+        ;;
+    esac
+    ;;
+  *)
+    echo "ERROR: This vocoder (${Vocoder}) is not supported. Please configure yourself!!" >&2
+    exit 1
+    ;;
+esac
 
-
-# [Architecture]
-if [[ "$Voice" == *"demo"* ]]
-then
-    $SED -i s#'hidden_layer_size\s*:.*'#'hidden_layer_size: [512, 512, 512, 512]'# $duration_config_file
-    $SED -i s#'hidden_layer_type\s*:.*'#'hidden_layer_type: ['\''TANH'\'', '\''TANH'\'', '\''TANH'\'', '\''TANH'\'']'# $duration_config_file
-fi
-
-
-# [Data]
-$SED -i s#'train_file_number\s*:.*'#'train_file_number: '${Train}# $duration_config_file
-$SED -i s#'valid_file_number\s*:.*'#'valid_file_number: '${Valid}# $duration_config_file
-$SED -i s#'test_file_number\s*:.*'#'test_file_number: '${Test}# $duration_config_file
-
-
-# [Processes]
-
-$SED -i s#'DurationModel\s*:.*'#'DurationModel: True'# $duration_config_file
-$SED -i s#'GenTestList\s*:.*'#'GenTestList: True'# $duration_config_file
-
-$SED -i s#'NORMLAB\s*:.*'#'NORMLAB: True'# $duration_config_file
-
-$SED -i s#'MAKEDUR\s*:.*'#'MAKEDUR: False'# $duration_config_file
-$SED -i s#'MAKECMP\s*:.*'#'MAKECMP: False'# $duration_config_file
-$SED -i s#'NORMCMP\s*:.*'#'NORMCMP: False'# $duration_config_file
-$SED -i s#'TRAINDNN\s*:.*'#'TRAINDNN: False'# $duration_config_file
-$SED -i s#'CALMCD\s*:.*'#'CALMCD: False'# $duration_config_file
-
-$SED -i s#'DNNGEN\s*:.*'#'DNNGEN: True'# $duration_config_file
-
-echo "Duration configuration settings stored in $duration_config_file"
-
-
-
-#########################################
-######## acoustic config file ###########
-#########################################
-
-acoustic_config_file=conf/test_synth_${Voice}.conf
-
-# Start with a general recipe...
-cp -f $MerlinDir/misc/recipes/acoustic_demo.conf $acoustic_config_file
-
-# ... and modify it:
-
-$SED -i s#'Merlin\s*:.*'#'Merlin: '$MerlinDir# $acoustic_config_file
-$SED -i s#'TOPLEVEL\s*:.*'#'TOPLEVEL: '${WorkDir}# $acoustic_config_file
-$SED -i s#'work\s*:.*'#'work: %(TOPLEVEL)s/experiments/'${Voice}'/acoustic_model'# $acoustic_config_file
-
-$SED -i s#'file_id_list\s*:.*'#'file_id_list: %(data)s/'${FileIDList}# $acoustic_config_file
-$SED -i s#'test_id_list\s*:.*'#'test_id_list: %(TOPLEVEL)s/experiments/'${Voice}'/test_synthesis/test_id_list.scp'# $acoustic_config_file
-
-
-# [Labels]
-
-$SED -i s#"silence_pattern:.*"#"silence_pattern: ['*-"${SilencePhone}"+*']"# $acoustic_config_file
-$SED -i s#'enforce_silence\s*:.*'#'enforce_silence: True'# $acoustic_config_file
-$SED -i s#'label_type\s*:.*'#'label_type: '${Labels}# $acoustic_config_file
-$SED -i s#'label_align\s*:.*'#'label_align: %(TOPLEVEL)s/experiments/'${Voice}'/test_synthesis/gen-lab'# $acoustic_config_file
-$SED -i s#'question_file_name\s*:.*'#'question_file_name: %(Merlin)s/misc/questions/'${QuestionFile}# $acoustic_config_file
-if [ "$Labels" == "state_align" ]
-then
-    $SED -i s#'subphone_feats\s*:.*'#'subphone_feats: full'# $acoustic_config_file
-elif [ "$Labels" == "phone_align" ]
-then
-    $SED -i s#'subphone_feats\s*:.*'#'subphone_feats: coarse_coding'# $acoustic_config_file
-else
-    echo "These labels ($Labels) are not supported as of now...please use state_align or phone_align!!"
-fi
-
-
-# [Outputs]
-
-$SED -i s#'mgc\s*:.*'#'mgc: 60'# $acoustic_config_file
-$SED -i s#'dmgc\s*:.*'#'dmgc: 180'# $acoustic_config_file
-
-if [ "$Vocoder" == "STRAIGHT" ]
-then
-    $SED -i s#'bap\s*:.*'#'bap: 25'# $acoustic_config_file
-    $SED -i s#'dbap\s*:.*'#'dbap: 75'# $acoustic_config_file
-
-elif [ "$Vocoder" == "WORLD" ]
-then
-    if [ "$SamplingFreq" == "16000" ]
-    then
-        $SED -i s#'bap\s*:.*'#'bap: 1'# $acoustic_config_file
-        $SED -i s#'dbap\s*:.*'#'dbap: 3'# $acoustic_config_file
-    elif [ "$SamplingFreq" == "48000" ]
-    then
-        $SED -i s#'bap\s*:.*'#'bap: 5'# $acoustic_config_file
-        $SED -i s#'dbap\s*:.*'#'dbap: 15'# $acoustic_config_file
-    fi
-else
-    echo "This vocoder ($Vocoder) is not supported as of now...please configure yourself!!"
-fi
-
-$SED -i s#'lf0\s*:.*'#'lf0: 1'# $acoustic_config_file
-$SED -i s#'dlf0\s*:.*'#'dlf0: 3'# $acoustic_config_file
-
-
-# [Waveform]
-
-$SED -i s#'test_synth_dir\s*:.*'#'test_synth_dir: %(TOPLEVEL)s/experiments/'${Voice}'/test_synthesis/wav'# $acoustic_config_file
-
-$SED -i s#'vocoder_type\s*:.*'#'vocoder_type: '${Vocoder}# $acoustic_config_file
-
-$SED -i s#'samplerate\s*:.*'#'samplerate: '${SamplingFreq}# $acoustic_config_file
-if [ "$SamplingFreq" == "16000" ]
-then
-    $SED -i s#'framelength\s*:.*'#'framelength: 1024'# $acoustic_config_file
-    $SED -i s#'minimum_phase_order\s*:.*'#'minimum_phase_order: 511'# $acoustic_config_file
-    $SED -i s#'fw_alpha\s*:.*'#'fw_alpha: 0.58'# $acoustic_config_file
-
-elif [ "$SamplingFreq" == "48000" ]
-then
-    if [ "$Vocoder" == "WORLD" ]
-    then
-        $SED -i s#'framelength\s*:.*'#'framelength: 2048'# $acoustic_config_file
-        $SED -i s#'minimum_phase_order\s*:.*'#'minimum_phase_order: 1023'# $acoustic_config_file
+# Sampling Frequency-specific acoustic settings
+case "${SamplingFreq}" in
+  16000)
+    apply_sed_substitutions "${acoustic_config_file}" \
+      'framelength\s*:.*' 'framelength: 1024' \
+      'minimum_phase_order\s*:.*' 'minimum_phase_order: 511' \
+      'fw_alpha\s*:.*' 'fw_alpha: 0.58'
+    ;;
+  22050)
+    apply_sed_substitutions "${acoustic_config_file}" \
+      'framelength\s*:.*' 'framelength: 1024' \
+      'minimum_phase_order\s*:.*' 'minimum_phase_order: 511' \
+      'fw_alpha\s*:.*' 'fw_alpha: 0.65'
+    ;;
+  44100)
+    apply_sed_substitutions "${acoustic_config_file}" \
+      'framelength\s*:.*' 'framelength: 2048' \
+      'minimum_phase_order\s*:.*' 'minimum_phase_order: 1023' \
+      'fw_alpha\s*:.*' 'fw_alpha: 0.76'
+    ;;
+  48000)
+    if [[ "${Vocoder}" == "WORLD" ]]; then
+      apply_sed_substitutions "${acoustic_config_file}" \
+        'framelength\s*:.*' 'framelength: 2048' \
+        'minimum_phase_order\s*:.*' 'minimum_phase_order: 1023'
     else
-        $SED -i s#'framelength\s*:.*'#'framelength: 4096'# $acoustic_config_file
-        $SED -i s#'minimum_phase_order\s*:.*'#'minimum_phase_order: 2047'# $acoustic_config_file
+      apply_sed_substitutions "${acoustic_config_file}" \
+        'framelength\s*:.*' 'framelength: 4096' \
+        'minimum_phase_order\s*:.*' 'minimum_phase_order: 2047'
     fi
-    $SED -i s#'fw_alpha\s*:.*'#'fw_alpha: 0.77'# $acoustic_config_file
-else
-    echo "This sampling frequency ($SamplingFreq) never tested before...please configure yourself!!"
+    ${SED} -i 's#fw_alpha\s*:.*#fw_alpha: 0.77#' "${acoustic_config_file}"
+    ;;
+  *)
+    echo "ERROR: This sampling frequency (${SamplingFreq}) never tested before...please configure yourself!!" >&2
+    exit 1
+    ;;
+esac
+
+# Architecture-specific acoustic settings
+if [[ "${Voice}" == *"demo"* ]]; then
+  apply_sed_substitutions "${acoustic_config_file}" \
+    'hidden_layer_size\s*:.*' 'hidden_layer_size: [512, 512, 512, 512]' \
+    "hidden_layer_type\s*:.*" "hidden_layer_type: [''TANH'', ''TANH'', ''TANH'', ''TANH'']"
 fi
 
+echo "Acoustic configuration settings stored in ${acoustic_config_file}"
 
-# [Architecture]
-if [[ "$Voice" == *"demo"* ]]
-then
-    $SED -i s#'hidden_layer_size\s*:.*'#'hidden_layer_size: [512, 512, 512, 512]'# $acoustic_config_file
-    $SED -i s#'hidden_layer_type\s*:.*'#'hidden_layer_type: ['\''TANH'\'', '\''TANH'\'', '\''TANH'\'', '\''TANH'\'']'# $acoustic_config_file
-fi
-
-
-# [Data]
-$SED -i s#'train_file_number\s*:.*'#'train_file_number: '${Train}# $acoustic_config_file
-$SED -i s#'valid_file_number\s*:.*'#'valid_file_number: '${Valid}# $acoustic_config_file
-$SED -i s#'test_file_number\s*:.*'#'test_file_number: '${Test}# $acoustic_config_file
-
-
-# [Processes]
-
-$SED -i s#'AcousticModel\s*:.*'#'AcousticModel: True'# $acoustic_config_file
-$SED -i s#'GenTestList\s*:.*'#'GenTestList: True'# $acoustic_config_file
-
-$SED -i s#'MAKECMP\s*:.*'#'MAKECMP: False'# $acoustic_config_file
-$SED -i s#'NORMCMP\s*:.*'#'NORMCMP: False'# $acoustic_config_file
-$SED -i s#'TRAINDNN\s*:.*'#'TRAINDNN: False'# $acoustic_config_file
-$SED -i s#'CALMCD\s*:.*'#'CALMCD: False'# $acoustic_config_file
-
-
-echo "Acoustic configuration settings stored in $acoustic_config_file"
+exit 0

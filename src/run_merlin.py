@@ -37,446 +37,82 @@
 #  THIS SOFTWARE.
 ################################################################################
 
-import pickle
-import gzip
 import os, sys, errno
-import time
-import math
-
-import subprocess
-import socket # only for socket.getfqdn()
 import multiprocessing
-
-#  numpy & theano imports need to be done in this order (only for some numpy installations, not sure why)
 import numpy
-#import gnumpy as gnp
-# we need to explicitly import this in some cases, not sure why this doesn't get imported with numpy itself
-import numpy.distutils.__config__
-# and only after that can we import theano
-import theano
+import io
 
-from utils.providers import ListDataProvider
+if __package__ is None or __package__ == '':
+    from frontend.label_normalisation import HTSLabelNormalisation
+    from frontend.silence_remover import SilenceRemover
+    from frontend.silence_remover import trim_silence
+    from frontend.min_max_norm import MinMaxNormalisation
+    from frontend.acoustic_composition import AcousticComposition
+    from frontend.parameter_generation import ParameterGeneration
+    from frontend.mean_variance_norm import MeanVarianceNorm
 
-from frontend.label_normalisation import HTSLabelNormalisation
-from frontend.silence_remover import SilenceRemover
-from frontend.silence_remover import trim_silence
-from frontend.min_max_norm import MinMaxNormalisation
-from frontend.acoustic_composition import AcousticComposition
-from frontend.parameter_generation import ParameterGeneration
-from frontend.mean_variance_norm import MeanVarianceNorm
+    # the new class for label composition and normalisation
+    from frontend.label_composer import LabelComposer
+    from frontend.label_modifier import HTSLabelModification
+    from frontend.merge_features import MergeFeat
 
-# the new class for label composition and normalisation
-from frontend.label_composer import LabelComposer
-from frontend.label_modifier import HTSLabelModification
-from frontend.merge_features import MergeFeat
 
-import configuration
-from models.deep_rnn import DeepRecurrentNetwork
+    from utils.compute_distortion import IndividualDistortionComp
+    from utils.generate import generate_wav
+    from utils.acous_feat_extraction import acous_feat_extraction
+    try:
+        # These packages are only needed if run from within the package
+        from utils.prepare_labels_from_txt import *
+        from utils.remove_intermediate_files import *
+    except ImportError:
+        pass
+# from io_funcs.binary_io import  BinaryIOCollection
+    from utils.file_paths import FilePaths
+    from utils.utils import prepare_file_path_list
+    import configuration
 
-from utils.compute_distortion import DistortionComputation, IndividualDistortionComp
-from utils.generate import generate_wav
-from utils.acous_feat_extraction import acous_feat_extraction
-from utils.learn_rates import ExpDecreaseLearningRate
+else:
+    from .frontend.label_normalisation import HTSLabelNormalisation
+    from .frontend.silence_remover import SilenceRemover
+    from .frontend.silence_remover import trim_silence
+    from .frontend.min_max_norm import MinMaxNormalisation
+    from .frontend.acoustic_composition import AcousticComposition
+    from .frontend.parameter_generation import ParameterGeneration
+    from .frontend.mean_variance_norm import MeanVarianceNorm
 
-from io_funcs.binary_io import  BinaryIOCollection
+    # the new class for label composition and normalisation
+    from .frontend.label_composer import LabelComposer
+    from .frontend.label_modifier import HTSLabelModification
+    from .frontend.merge_features import MergeFeat
 
-# our custom logging class that can also plot
-from logplot.logging_plotting import LoggerPlotter, MultipleSeriesPlot, SingleWeightMatrixPlot
+
+    from .utils.compute_distortion import IndividualDistortionComp
+    from .utils.generate import generate_wav
+    from .utils.acous_feat_extraction import acous_feat_extraction
+    from .utils.prepare_labels_from_txt import *
+    from .utils.remove_intermediate_files import *
+# from io_funcs.binary_io import  BinaryIOCollection
+    from .utils.file_paths import FilePaths
+    from .utils.utils import prepare_file_path_list
+    from . import configuration
+
+LOGGING_ACTIVE = False
 import logging # as logging
 import logging.config
-import io
-from utils.file_paths import FilePaths
-from utils.utils import read_file_list, prepare_file_path_list
 
 
-def extract_file_id_list(file_list):
-    file_id_list = []
-    for file_name in file_list:
-        file_id = os.path.basename(os.path.splitext(file_name)[0])
-        file_id_list.append(file_id)
 
-    return  file_id_list
+# def load_covariance(var_file_dict, out_dimension_dict):
+#     var = {}
+#     io_funcs = BinaryIOCollection()
+#     for feature_name in list(var_file_dict.keys()):
+#         var_values, dimension = io_funcs.load_binary_file_frame(var_file_dict[feature_name], 1)
 
-def make_output_file_list(out_dir, in_file_lists):
-    out_file_lists = []
+#         var_values = numpy.reshape(var_values, (out_dimension_dict[feature_name], 1))
 
-    for in_file_name in in_file_lists:
-        file_id = os.path.basename(in_file_name)
-        out_file_name = out_dir + '/' + file_id
-        out_file_lists.append(out_file_name)
+#         var[feature_name] = var_values
 
-    return  out_file_lists
-
-def visualize_dnn(dnn):
-
-    plotlogger = logging.getLogger("plotting")
-
-        # reference activation weights in layers
-    W = list(); layer_name = list()
-    for i in range(len(dnn.params)):
-        aa = dnn.params[i].get_value(borrow=True).T
-        print(aa.shape, aa.size)
-        if aa.size > aa.shape[0]:
-            W.append(aa)
-            layer_name.append(dnn.params[i].name)
-
-    ## plot activation weights including input and output
-    layer_num = len(W)
-    for i_layer in range(layer_num):
-        fig_name = 'Activation weights W' + str(i_layer) + '_' + layer_name[i_layer]
-        fig_title = 'Activation weights of W' + str(i_layer)
-        xlabel = 'Neuron index of hidden layer ' + str(i_layer)
-        ylabel = 'Neuron index of hidden layer ' + str(i_layer+1)
-        if i_layer == 0:
-            xlabel = 'Input feature index'
-        if i_layer == layer_num-1:
-            ylabel = 'Output feature index'
-        logger.create_plot(fig_name, SingleWeightMatrixPlot)
-        plotlogger.add_plot_point(fig_name, fig_name, W[i_layer])
-        plotlogger.save_plot(fig_name, title=fig_name, xlabel=xlabel, ylabel=ylabel)
-
-
-def load_covariance(var_file_dict, out_dimension_dict):
-    var = {}
-    io_funcs = BinaryIOCollection()
-    for feature_name in list(var_file_dict.keys()):
-        var_values, dimension = io_funcs.load_binary_file_frame(var_file_dict[feature_name], 1)
-
-        var_values = numpy.reshape(var_values, (out_dimension_dict[feature_name], 1))
-
-        var[feature_name] = var_values
-
-    return  var
-
-
-def train_DNN(train_xy_file_list, valid_xy_file_list, \
-              nnets_file_name, n_ins, n_outs, ms_outs, hyper_params, buffer_size, plot=False, var_dict=None,
-              cmp_mean_vector = None, cmp_std_vector = None, init_dnn_model_file = None):
-
-    # get loggers for this function
-    # this one writes to both console and file
-    logger = logging.getLogger("main.train_DNN")
-    logger.debug('Starting train_DNN')
-
-    if plot:
-        # this one takes care of plotting duties
-        plotlogger = logging.getLogger("plotting")
-        # create an (empty) plot of training convergence, ready to receive data points
-        logger.create_plot('training convergence',MultipleSeriesPlot)
-
-    try:
-        assert numpy.sum(ms_outs) == n_outs
-    except AssertionError:
-        logger.critical('the summation of multi-stream outputs does not equal to %d' %(n_outs))
-        raise
-
-    ####parameters#####
-    finetune_lr     = float(hyper_params['learning_rate'])
-    training_epochs = int(hyper_params['training_epochs'])
-    batch_size      = int(hyper_params['batch_size'])
-    l1_reg          = float(hyper_params['l1_reg'])
-    l2_reg          = float(hyper_params['l2_reg'])
-    warmup_epoch    = int(hyper_params['warmup_epoch'])
-    momentum        = float(hyper_params['momentum'])
-    warmup_momentum = float(hyper_params['warmup_momentum'])
-
-    hidden_layer_size = hyper_params['hidden_layer_size']
-
-    buffer_utt_size = buffer_size
-    early_stop_epoch = int(hyper_params['early_stop_epochs'])
-
-    hidden_activation = hyper_params['hidden_activation']
-    output_activation = hyper_params['output_activation']
-
-    model_type = hyper_params['model_type']
-    hidden_layer_type  = hyper_params['hidden_layer_type']
-
-    ## use a switch to turn on pretraining
-    ## pretraining may not help too much, if this case, we turn it off to save time
-    do_pretraining = hyper_params['do_pretraining']
-    pretraining_epochs = int(hyper_params['pretraining_epochs'])
-    pretraining_lr = float(hyper_params['pretraining_lr'])
-
-    sequential_training = hyper_params['sequential_training']
-    dropout_rate = hyper_params['dropout_rate']
-
-    buffer_size = int(buffer_size / batch_size) * batch_size
-
-    ###################
-    (train_x_file_list, train_y_file_list) = train_xy_file_list
-    (valid_x_file_list, valid_y_file_list) = valid_xy_file_list
-
-    logger.debug('Creating training   data provider')
-    train_data_reader = ListDataProvider(x_file_list = train_x_file_list, y_file_list = train_y_file_list,
-                            n_ins = n_ins, n_outs = n_outs, buffer_size = buffer_size, 
-                            sequential = sequential_training, shuffle = True)
-
-    logger.debug('Creating validation data provider')
-    valid_data_reader = ListDataProvider(x_file_list = valid_x_file_list, y_file_list = valid_y_file_list,
-                            n_ins = n_ins, n_outs = n_outs, buffer_size = buffer_size, 
-                            sequential = sequential_training, shuffle = False)
-
-    if cfg.rnn_batch_training:
-        train_data_reader.set_rnn_params(training_algo=cfg.training_algo, batch_size=cfg.batch_size, seq_length=cfg.seq_length, merge_size=cfg.merge_size, bucket_range=cfg.bucket_range)
-        valid_data_reader.reshape_input_output()
-    
-    shared_train_set_xy, temp_train_set_x, temp_train_set_y = train_data_reader.load_one_partition()
-    train_set_x, train_set_y = shared_train_set_xy
-    shared_valid_set_xy, temp_valid_set_x, temp_valid_set_y = valid_data_reader.load_one_partition()
-    valid_set_x, valid_set_y = shared_valid_set_xy
-    train_data_reader.reset()
-    valid_data_reader.reset()
-
-
-    ##temporally we use the training set as pretrain_set_x.
-    ##we need to support any data for pretraining
-
-    # numpy random generator
-    numpy_rng = numpy.random.RandomState(123)
-    logger.info('building the model')
-
-
-    dnn_model = None
-    pretrain_fn = None  ## not all the model support pretraining right now
-    train_fn = None
-    valid_fn = None
-    valid_model = None ## valid_fn and valid_model are the same. reserve to computer multi-stream distortion
-    if model_type == 'DNN':
-        dnn_model = DeepRecurrentNetwork(n_in= n_ins, hidden_layer_size = hidden_layer_size, n_out = n_outs,
-                                         L1_reg = l1_reg, L2_reg = l2_reg, hidden_layer_type = hidden_layer_type, output_type = cfg.output_layer_type,
-                                         dropout_rate = dropout_rate, optimizer = cfg.optimizer, rnn_batch_training = cfg.rnn_batch_training)
-
-    else:
-        logger.critical('%s type NN model is not supported!' %(model_type))
-        raise
-
-    ## Model adaptation -- fine tuning the existing model
-    ## We can't just unpickle the old model and use that because fine-tune functions
-    ## depend on opt_l2e option used in construction of initial model. One way around this
-    ## would be to unpickle, manually set unpickled_dnn_model.opt_l2e=True and then call
-    ## unpickled_dnn_model.build_finetne_function() again. This is another way, construct
-    ## new model from scratch with opt_l2e=True, then copy existing weights over:
-    use_lhuc = cfg.use_lhuc
-    if init_dnn_model_file != "_":
-        logger.info('load parameters from existing model: %s' %(init_dnn_model_file))
-        if not os.path.isfile(init_dnn_model_file):
-            sys.exit('Model file %s does not exist'%(init_dnn_model_file))
-        existing_dnn_model = pickle.load(open(init_dnn_model_file, 'rb'))
-        if not use_lhuc and not len(existing_dnn_model.params) == len(dnn_model.params):
-            sys.exit('Old and new models have different numbers of weight matrices')
-        elif use_lhuc and len(dnn_model.params) < len(existing_dnn_model.params):
-            sys.exit('In LHUC adaptation new model must have more parameters than old model.')
-        # assign the existing dnn model parameters to the new dnn model
-        k = 0
-        for i in range(len(dnn_model.params)):
-            ## Added for LHUC ##
-            # In LHUC, we keep all the old parameters intact and learn only a small set of new
-            # parameters
-            if dnn_model.params[i].name == 'c':
-                continue
-            else:
-                old_val = existing_dnn_model.params[k].get_value()
-                new_val = dnn_model.params[i].get_value()
-                if numpy.shape(old_val) == numpy.shape(new_val):
-                    dnn_model.params[i].set_value(old_val)
-                else:
-                    sys.exit('old and new weight matrices have different shapes')
-                k = k + 1        
-    train_fn, valid_fn = dnn_model.build_finetune_functions(
-                    (train_set_x, train_set_y), (valid_set_x, valid_set_y), use_lhuc, layer_index=cfg.freeze_layers)  #, batch_size=batch_size
-    logger.info('fine-tuning the %s model' %(model_type))
-
-    start_time = time.time()
-
-    best_dnn_model = dnn_model
-    best_validation_loss = sys.float_info.max
-    previous_loss = sys.float_info.max
-
-    lr_decay  = cfg.lr_decay
-    if lr_decay>0:
-        early_stop_epoch *= lr_decay
-
-    early_stop = 0
-    val_loss_counter = 0
-
-    previous_finetune_lr = finetune_lr
-
-    epoch = 0
-    while (epoch < training_epochs):
-        epoch = epoch + 1
-        
-        if lr_decay==0:
-            # fixed learning rate 
-            reduce_lr = False
-        elif lr_decay<0:
-            # exponential decay
-            reduce_lr = False if epoch <= warmup_epoch else True
-        elif val_loss_counter > 0:
-            # linear decay
-            reduce_lr = False
-            if val_loss_counter%lr_decay==0:
-                reduce_lr = True
-                val_loss_counter = 0
-        else:
-            # no decay
-            reduce_lr = False
-
-        if reduce_lr:
-            current_finetune_lr = previous_finetune_lr * 0.5
-            current_momentum    = momentum
-        else:
-            current_finetune_lr = previous_finetune_lr
-            current_momentum    = warmup_momentum
-        
-        previous_finetune_lr = current_finetune_lr
-
-        train_error = []
-        sub_start_time = time.time()
-
-        logger.debug("training params -- learning rate: %f, early_stop: %d/%d" % (current_finetune_lr, early_stop, early_stop_epoch))
-        while (not train_data_reader.is_finish()):
-
-            _, temp_train_set_x, temp_train_set_y = train_data_reader.load_one_partition()
-
-            # if sequential training, the batch size will be the number of frames in an utterance
-            # batch_size for sequential training is considered only when rnn_batch_training is set to True
-            if sequential_training == True:
-                batch_size = temp_train_set_x.shape[0]
-
-            n_train_batches = temp_train_set_x.shape[0] // batch_size
-            for index in range(n_train_batches):
-                ## send a batch to the shared variable, rather than pass the batch size and batch index to the finetune function
-                train_set_x.set_value(numpy.asarray(temp_train_set_x[index*batch_size:(index + 1)*batch_size], dtype=theano.config.floatX), borrow=True)
-                train_set_y.set_value(numpy.asarray(temp_train_set_y[index*batch_size:(index + 1)*batch_size], dtype=theano.config.floatX), borrow=True)
-
-                this_train_error = train_fn(current_finetune_lr, current_momentum)
-
-                train_error.append(this_train_error)
-
-        train_data_reader.reset()
-
-        logger.debug('calculating validation loss')
-        validation_losses = []
-        while (not valid_data_reader.is_finish()):
-            shared_valid_set_xy, temp_valid_set_x, temp_valid_set_y = valid_data_reader.load_one_partition()
-            valid_set_x.set_value(numpy.asarray(temp_valid_set_x, dtype=theano.config.floatX), borrow=True)
-            valid_set_y.set_value(numpy.asarray(temp_valid_set_y, dtype=theano.config.floatX), borrow=True)
-
-            this_valid_loss = valid_fn()
-
-            validation_losses.append(this_valid_loss)
-        valid_data_reader.reset()
-
-        this_validation_loss = numpy.mean(validation_losses)
-
-        this_train_valid_loss = numpy.mean(numpy.asarray(train_error))
-
-        sub_end_time = time.time()
-
-        loss_difference = this_validation_loss - previous_loss
-
-        logger.info('epoch %i, validation error %f, train error %f  time spent %.2f' %(epoch, this_validation_loss, this_train_valid_loss, (sub_end_time - sub_start_time)))
-        if plot:
-            plotlogger.add_plot_point('training convergence','validation set',(epoch,this_validation_loss))
-            plotlogger.add_plot_point('training convergence','training set',(epoch,this_train_valid_loss))
-            plotlogger.save_plot('training convergence',title='Progress of training and validation error',xlabel='epochs',ylabel='error')
-
-        if this_validation_loss < best_validation_loss:
-            pickle.dump(best_dnn_model, open(nnets_file_name, 'wb'))
-
-            best_dnn_model = dnn_model
-            best_validation_loss = this_validation_loss
-
-        if this_validation_loss >= previous_loss:
-            logger.debug('validation loss increased')
-            val_loss_counter+=1
-            early_stop+=1
-
-        if epoch > 15 and early_stop > early_stop_epoch:
-            logger.debug('stopping early')
-            break
-
-        if math.isnan(this_validation_loss):
-            break
-
-        previous_loss = this_validation_loss
-
-    end_time = time.time()
-
-    logger.info('overall  training time: %.2fm validation error %f' % ((end_time - start_time) / 60., best_validation_loss))
-
-    if plot:
-        plotlogger.save_plot('training convergence',title='Final training and validation error',xlabel='epochs',ylabel='error')
-
-    return  best_validation_loss
-
-
-def dnn_generation(valid_file_list, nnets_file_name, n_ins, n_outs, out_file_list, reshape_io=False):
-    logger = logging.getLogger("dnn_generation")
-    logger.debug('Starting dnn_generation')
-
-    plotlogger = logging.getLogger("plotting")
-
-    dnn_model = pickle.load(open(nnets_file_name, 'rb'))
-
-    file_number = len(valid_file_list)
-
-    for i in range(file_number):  #file_number
-        logger.info('generating %4d of %4d: %s' % (i+1,file_number,valid_file_list[i]) )
-        fid_lab = open(valid_file_list[i], 'rb')
-        features = numpy.fromfile(fid_lab, dtype=numpy.float32)
-        fid_lab.close()
-        features = features[:(n_ins * (features.size // n_ins))]
-        test_set_x = features.reshape((-1, n_ins))
-        n_rows = test_set_x.shape[0]
-        
-        if reshape_io:
-            test_set_x = numpy.reshape(test_set_x, (1, test_set_x.shape[0], n_ins))
-            test_set_x = numpy.array(test_set_x, 'float32')
-
-        predicted_parameter = dnn_model.parameter_prediction(test_set_x)
-        predicted_parameter = predicted_parameter.reshape(-1, n_outs)
-        predicted_parameter = predicted_parameter[0:n_rows]
-        
-        ### write to cmp file
-        predicted_parameter = numpy.array(predicted_parameter, 'float32')
-        temp_parameter = predicted_parameter
-        fid = open(out_file_list[i], 'wb')
-        predicted_parameter.tofile(fid)
-        logger.debug('saved to %s' % out_file_list[i])
-        fid.close()
-
-##generate bottleneck layer as features
-def dnn_hidden_generation(valid_file_list, nnets_file_name, n_ins, n_outs, out_file_list, bottleneck_index):
-    logger = logging.getLogger("dnn_generation")
-    logger.debug('Starting dnn_generation')
-
-    plotlogger = logging.getLogger("plotting")
-
-    dnn_model = pickle.load(open(nnets_file_name, 'rb'))
-
-    file_number = len(valid_file_list)
-
-    for i in range(file_number):
-        logger.info('generating %4d of %4d: %s' % (i+1,file_number,valid_file_list[i]) )
-        fid_lab = open(valid_file_list[i], 'rb')
-        features = numpy.fromfile(fid_lab, dtype=numpy.float32)
-        fid_lab.close()
-        features = features[:(n_ins * (features.size // n_ins))]
-        features = features.reshape((-1, n_ins))
-        temp_set_x = features.tolist()
-        test_set_x = theano.shared(numpy.asarray(temp_set_x, dtype=theano.config.floatX))
-
-        predicted_parameter = dnn_model.generate_hidden_layer(test_set_x, bottleneck_index)
-
-        ### write to cmp file
-        predicted_parameter = numpy.array(predicted_parameter, 'float32')
-        temp_parameter = predicted_parameter
-        fid = open(out_file_list[i], 'wb')
-        predicted_parameter.tofile(fid)
-        logger.debug('saved to %s' % out_file_list[i])
-        fid.close()
-
+#     return  var
 
 def perform_acoustic_composition_on_split(args):
     """ Performs acoustic composition on one chunk of data.
@@ -520,25 +156,27 @@ def main_function(cfg):
 
     # get a logger for this main function
     logger = logging.getLogger("main")
-
-    # get another logger to handle plotting duties
-    plotlogger = logging.getLogger("plotting")
-
-    # later, we might do this via a handler that is created, attached and configured
-    # using the standard config mechanism of the logging module
-    # but for now we need to do it manually
-    plotlogger.set_plot_path(cfg.plot_dir)
+    if LOGGING_ACTIVE:
+        try:
+            # get another logger to handle plotting duties
+            plotlogger = logging.getLogger("plotting")
+            # later, we might do this via a handler that is created, attached and configured
+            # using the standard config mechanism of the logging module
+            # but for now we need to do it manually
+            plotlogger.set_plot_path(cfg.plot_dir)
+        except:
+            pass
+    else:
+        logger.disabled = True
+        logger.propagate = False
 
     # create plot dir if set to True
     if not os.path.exists(cfg.plot_dir) and cfg.plot:
         os.makedirs(cfg.plot_dir)
 
-    #### parameter setting########
-    hidden_layer_size = cfg.hyper_params['hidden_layer_size']
-
     ####prepare environment
     try:
-        file_id_list = read_file_list(cfg.file_id_scp)
+        file_id_list = file_paths.file_id_list
         logger.debug('Loaded file id list from %s' % cfg.file_id_scp)
     except IOError:
         # this means that open(...) threw an error
@@ -547,11 +185,17 @@ def main_function(cfg):
 
     ###total file number including training, development, and testing
     total_file_number = len(file_id_list)
-
+    logger.info(f"""
+        Total files: {total_file_number}
+        cfg.train:   {cfg.train_file_number}
+        cfg.valid:   {cfg.valid_file_number}
+        cfg.test:    {cfg.test_file_number}
+    """)
+    # Total_file_number == 1, fails under 2.7 as well
     assert cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number == total_file_number, 'check train, valid, test file number'
 
     data_dir = cfg.data_dir
-
+    print(data_dir)
     inter_data_dir = cfg.inter_data_dir
     nn_cmp_dir       = file_paths.nn_cmp_dir
     nn_cmp_norm_dir   = file_paths.nn_cmp_norm_dir
@@ -568,10 +212,6 @@ def main_function(cfg):
 
     ###normalisation information
     norm_info_file = file_paths.norm_info_file
-
-    ### normalise input full context label
-    # currently supporting two different forms of lingustic features
-    # later, we should generalise this
 
     assert cfg.label_style == 'HTS', 'Only HTS-style labels are now supported as input to Merlin'
 
@@ -592,7 +232,7 @@ def main_function(cfg):
     file_paths.set_label_file_list()
 
     binary_label_dir      = file_paths.binary_label_dir
-    nn_label_dir          = file_paths.nn_label_dir
+    # nn_label_dir          = file_paths.nn_label_dir
     nn_label_norm_dir     = file_paths.nn_label_norm_dir
 
     in_label_align_file_list = file_paths.in_label_align_file_list
@@ -618,14 +258,14 @@ def main_function(cfg):
 
     if cfg.NORMLAB:
         # simple HTS labels
-        logger.info('preparing label data (input) using standard HTS style labels')
+        logger.info(f'preparing label data (input) using standard HTS style labels {in_label_align_file_list}')
         label_normaliser.perform_normalisation(in_label_align_file_list, binary_label_file_list, label_type=cfg.label_type)
 
         if cfg.additional_features:
             out_feat_file_list = file_paths.out_feat_file_list
             in_dim = label_normaliser.dimension
 
-            for new_feature, new_feature_dim in cfg.additional_features.items():
+            for new_feature, new_feature_dim in list(cfg.additional_features.items()):
                 new_feat_dir  = os.path.join(data_dir, new_feature)
                 new_feat_file_list = prepare_file_path_list(file_id_list, new_feat_dir, '.'+new_feature)
 
@@ -651,8 +291,8 @@ def main_function(cfg):
             min_max_normaliser.normalise_data(binary_label_file_list, nn_label_norm_file_list)
         else:
             min_max_normaliser.normalise_data(nn_label_file_list, nn_label_norm_file_list)
-
-
+    ## Debug build_your_own_voice/s1
+    # raise ValueError("made it into NORMLAB")
 
     if min_max_normaliser != None and not cfg.GenTestList:
         ### save label normalisation information for unseen testing labels
@@ -665,6 +305,8 @@ def main_function(cfg):
         label_norm_info.tofile(fid)
         fid.close()
         logger.info('saved %s vectors to %s' %(label_min_vector.size, label_norm_file))
+        ## Debug build_your_own_voice/s1
+        # raise ValueError("Here we are writing to the file!")
 
     ### make output duration data
     if cfg.MAKEDUR:
@@ -686,7 +328,7 @@ def main_function(cfg):
         if 'dur' in list(cfg.in_dir_dict.keys()) and cfg.AcousticModel:
             lf0_file_list = file_paths.get_lf0_file_list()
             acoustic_worker = AcousticComposition(delta_win = delta_win, acc_win = acc_win)
-            acoustic_worker.make_equal_frames(dur_file_list, lf0_file_list, cfg.in_dimension_dict)
+            acoustic_worker.make_equal_frames(file_paths.dur_file_list, lf0_file_list, cfg.in_dimension_dict)
             acoustic_worker.prepare_nn_data(in_file_list_dict, nn_cmp_file_list, cfg.in_dimension_dict, cfg.out_dimension_dict)
         else:
             perform_acoustic_composition(delta_win, acc_win, in_file_list_dict, nn_cmp_file_list, cfg, parallel=True)
@@ -710,7 +352,7 @@ def main_function(cfg):
             remover.remove_silence(nn_cmp_file_list, in_label_align_file_list, nn_cmp_file_list) # save to itself
 
     ### save acoustic normalisation information for normalising the features back
-    var_dir  = file_paths.var_dir
+    # var_dir  = file_paths.var_dir
     var_file_dict = file_paths.get_var_dic()
 
     ### normalise output acoustic data
@@ -731,14 +373,14 @@ def main_function(cfg):
                 if cfg.vocoder_type == 'hmpd':
                     stream_start_index = {}
                     dimension_index = 0
-                    recorded_vuv = False
-                    vuv_dimension = None
-                    for feature_name in cfg.out_dimension_dict.keys():
+                    # recorded_vuv = False
+                    # vuv_dimension = None
+                    for feature_name in list(cfg.out_dimension_dict.keys()):
                         if feature_name != 'vuv':
                             stream_start_index[feature_name] = dimension_index
-                        else:
-                            vuv_dimension = dimension_index
-                            recorded_vuv = True
+                        # else:
+                        #     vuv_dimension = dimension_index
+                        #     recorded_vuv = True
                         
                         dimension_index += cfg.out_dimension_dict[feature_name]
                     logger.info('hmpd pdd values are not normalized since they are in 0 to 1')
@@ -783,9 +425,9 @@ def main_function(cfg):
 
                 feature_index += cfg.out_dimension_dict[feature_name]
 
-    train_x_file_list, train_y_file_list = file_paths.get_train_list_x_y()
-    valid_x_file_list, valid_y_file_list = file_paths.get_valid_list_x_y()
-    test_x_file_list, test_y_file_list = file_paths.get_test_list_x_y()
+    # train_x_file_list, train_y_file_list = file_paths.get_train_list_x_y()
+    # valid_x_file_list, valid_y_file_list = file_paths.get_valid_list_x_y()
+    # test_x_file_list, test_y_file_list = file_paths.get_test_list_x_y()
 
     # we need to know the label dimension before training the DNN
     # computing that requires us to look at the labels
@@ -798,42 +440,33 @@ def main_function(cfg):
 
     logger.info('label dimension is %d' % lab_dim)
 
-    combined_model_arch = str(len(hidden_layer_size))
-    for hid_size in hidden_layer_size:
-        combined_model_arch += '_' + str(hid_size)
-
-    nnets_file_name = file_paths.get_nnets_file_name()
     temp_dir_name = file_paths.get_temp_nn_dir_name()
 
     gen_dir = os.path.join(gen_dir, temp_dir_name)
 
-    if cfg.switch_to_keras or cfg.switch_to_tensorflow:
-        ### set configuration variables ###
-        cfg.inp_dim = lab_dim
-        cfg.out_dim = cfg.cmp_dim
+    ### set configuration variables ###
+    cfg.inp_dim = lab_dim
+    cfg.out_dim = cfg.cmp_dim
 
-        cfg.inp_feat_dir  = nn_label_norm_dir
-        cfg.out_feat_dir  = nn_cmp_norm_dir
-        cfg.pred_feat_dir = gen_dir
+    cfg.inp_feat_dir  = nn_label_norm_dir
+    cfg.out_feat_dir  = nn_cmp_norm_dir
+    cfg.pred_feat_dir = gen_dir
 
-        if cfg.GenTestList and cfg.test_synth_dir!="None":
-            cfg.inp_feat_dir  = cfg.test_synth_dir
-            cfg.pred_feat_dir = cfg.test_synth_dir
-        
-    if cfg.switch_to_keras:
-        ### call kerasclass and use an instance ###
-        from run_keras_with_merlin_io import KerasClass
-        keras_instance = KerasClass(cfg)
+    if cfg.GenTestList and cfg.test_synth_dir!="None":
+        cfg.inp_feat_dir  = cfg.test_synth_dir
+        cfg.pred_feat_dir = cfg.test_synth_dir
+
+    ### call kerasclass and use an instance ###
+    try:
+        from run_keras_with_merlin_io_cond_test import KerasClass
+    except ModuleNotFoundError:
+        from .run_keras_with_merlin_io_cond_test import KerasClass
+    keras_instance = KerasClass(cfg)
     
-    elif cfg.switch_to_tensorflow:
-        ### call Tensorflowclass and use an instance ###
-        from run_tensorflow_with_merlin_io import TensorflowClass
-        tf_instance = TensorflowClass(cfg)
-
     ### DNN model training
     if cfg.TRAINDNN:
 
-        var_dict = load_covariance(var_file_dict, cfg.out_dimension_dict)
+        # var_dict = load_covariance(var_file_dict, cfg.out_dimension_dict)
 
         logger.info('training DNN')
 
@@ -841,8 +474,8 @@ def main_function(cfg):
         cmp_min_max = numpy.fromfile(fid, dtype=numpy.float32)
         fid.close()
         cmp_min_max = cmp_min_max.reshape((2, -1))
-        cmp_mean_vector = cmp_min_max[0, ]
-        cmp_std_vector  = cmp_min_max[1, ]
+        # cmp_mean_vector = cmp_min_max[0, ]
+        # cmp_std_vector  = cmp_min_max[1, ]
 
 
         try:
@@ -857,17 +490,8 @@ def main_function(cfg):
                 raise
 
         try:
-            if cfg.switch_to_keras:
-                keras_instance.train_keras_model()
-            elif cfg.switch_to_tensorflow:
-                tf_instance.train_tensorflow_model()
-            else:
-                train_DNN(train_xy_file_list = (train_x_file_list, train_y_file_list), \
-                      valid_xy_file_list = (valid_x_file_list, valid_y_file_list), \
-                      nnets_file_name = nnets_file_name, \
-                      n_ins = lab_dim, n_outs = cfg.cmp_dim, ms_outs = cfg.multistream_outs, \
-                      hyper_params = cfg.hyper_params, buffer_size = cfg.buffer_size, plot = cfg.plot, var_dict = var_dict,
-                      cmp_mean_vector = cmp_mean_vector, cmp_std_vector = cmp_std_vector,init_dnn_model_file=cfg.start_from_trained_model)
+            keras_instance.train_keras_model()
+
         except KeyboardInterrupt:
             logger.critical('train_DNN interrupted via keyboard')
             # Could 'raise' the exception further, but that causes a deep traceback to be printed
@@ -877,45 +501,13 @@ def main_function(cfg):
             logger.critical('train_DNN threw an exception')
             raise
 
-
-
-    if cfg.GENBNFEA:
-        # Please only tune on this step when you want to generate bottleneck features from DNN
-        gen_dir = file_paths.bottleneck_features
-
-        bottleneck_size = min(hidden_layer_size)
-        bottleneck_index = 0
-        for i in range(len(hidden_layer_size)):
-            if hidden_layer_size[i] == bottleneck_size:
-                bottleneck_index = i
-
-        logger.info('generating bottleneck features from DNN')
-
-        try:
-            os.makedirs(gen_dir)
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                # not an error - just means directory already exists
-                pass
-            else:
-                logger.critical('Failed to create generation directory %s' % gen_dir)
-                logger.critical(' OS error was: %s' % e.strerror)
-                raise
-
-        gen_file_id_list = file_id_list[0:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
-        test_x_file_list = nn_label_norm_file_list[0:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
-
-        gen_file_list = prepare_file_path_list(gen_file_id_list, gen_dir, cfg.cmp_ext)
-
-        dnn_hidden_generation(test_x_file_list, nnets_file_name, lab_dim, cfg.cmp_dim, gen_file_list, bottleneck_index)
-
     ### generate parameters from DNN
     gen_file_id_list = file_id_list[cfg.train_file_number:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
-    test_x_file_list  = nn_label_norm_file_list[cfg.train_file_number:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
+    # test_x_file_list  = nn_label_norm_file_list[cfg.train_file_number:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
 
     if cfg.GenTestList:
         gen_file_id_list = test_id_list
-        test_x_file_list = nn_label_norm_file_list
+        # test_x_file_list = nn_label_norm_file_list
         if cfg.test_synth_dir!="None":
             gen_dir = cfg.test_synth_dir
 
@@ -935,14 +527,7 @@ def main_function(cfg):
 
         gen_file_list = prepare_file_path_list(gen_file_id_list, gen_dir, cfg.cmp_ext)
 
-
-        if cfg.switch_to_keras:
-            keras_instance.test_keras_model()
-        elif cfg.switch_to_tensorflow:
-            tf_instance.test_tensorflow_model()
-        else:
-            reshape_io = True if cfg.rnn_batch_training else False
-            dnn_generation(test_x_file_list, nnets_file_name, lab_dim, cfg.cmp_dim, gen_file_list, reshape_io)
+        keras_instance.test_keras_model()
 
         logger.debug('denormalising generated output using method %s' % cfg.output_feature_normalisation)
 
@@ -982,13 +567,12 @@ def main_function(cfg):
             label_modifier = HTSLabelModification(silence_pattern = cfg.silence_pattern, label_type = cfg.label_type)
             label_modifier.modify_duration_labels(in_gen_label_align_file_list, gen_dur_list, gen_label_list)
 
-
     ### generate wav
     if cfg.GENWAV:
         logger.info('reconstructing waveform(s)')
         generate_wav(gen_dir, gen_file_id_list, cfg)     # generated speech
 #       generate_wav(nn_cmp_dir, gen_file_id_list, cfg)  # reference copy synthesis speech
-
+        
     ### setting back to original conditions before calculating objective scores ###
     if cfg.GenTestList:
         in_label_align_file_list = prepare_file_path_list(file_id_list, cfg.in_label_align_dir, cfg.lab_ext, False)
@@ -1049,10 +633,10 @@ def main_function(cfg):
         in_gen_label_align_file_list = in_label_align_file_list[cfg.train_file_number:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
         calculator = IndividualDistortionComp()
 
-        spectral_distortion = 0.0
-        bap_mse             = 0.0
-        f0_mse              = 0.0
-        vuv_error           = 0.0
+        # spectral_distortion = 0.0
+        # bap_mse             = 0.0
+        # f0_mse              = 0.0
+        # vuv_error           = 0.0
 
         valid_file_id_list = file_id_list[cfg.train_file_number:cfg.train_file_number+cfg.valid_file_number]
         test_file_id_list  = file_id_list[cfg.train_file_number+cfg.valid_file_number:cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number]
@@ -1217,9 +801,8 @@ def main_function(cfg):
             logger.info('Test   : DNN -- MCD: %.3f dB; BAP: %.3f dB; F0:- RMSE: %.3f Hz; CORR: %.3f; VUV: %.3f%%' \
                     %(test_spectral_distortion , test_bap_mse , test_f0_mse , test_f0_corr, test_vuv_error*100.))
 
-if __name__ == '__main__':
 
-
+def run_wconfig(config_file):
 
     # these things should be done even before trying to parse the command line
 
@@ -1227,76 +810,14 @@ if __name__ == '__main__':
     # and get a short name for this instance
     cfg=configuration.cfg
 
-    # set up logging to use our custom class
-    logging.setLoggerClass(LoggerPlotter)
-
     # get a logger for this main function
     logger = logging.getLogger("main")
-
-
-    if len(sys.argv) != 2:
-        logger.critical('usage: run_merlin.sh [config file name]')
-        sys.exit(1)
-
-    config_file = sys.argv[1]
+    if not LOGGING_ACTIVE:
+        logger.disabled = True
+        logger.propagate = False
 
     config_file = os.path.abspath(config_file)
-    cfg.configure(config_file)
-
-
-    logger.info('Installation information:')
-    logger.info('  Merlin directory: '+os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir)))
-    logger.info('  PATH:')
-    env_PATHs = os.getenv('PATH')
-    if env_PATHs:
-        env_PATHs = env_PATHs.split(':')
-        for p in env_PATHs:
-            if len(p)>0: logger.info('      '+p)
-    logger.info('  LD_LIBRARY_PATH:')
-    env_LD_LIBRARY_PATHs = os.getenv('LD_LIBRARY_PATH')
-    if env_LD_LIBRARY_PATHs:
-        env_LD_LIBRARY_PATHs = env_LD_LIBRARY_PATHs.split(':')
-        for p in env_LD_LIBRARY_PATHs:
-            if len(p)>0: logger.info('      '+p)
-    logger.info('  Python version: '+sys.version.replace('\n',''))
-    logger.info('    PYTHONPATH:')
-    env_PYTHONPATHs = os.getenv('PYTHONPATH')
-    if env_PYTHONPATHs:
-        env_PYTHONPATHs = env_PYTHONPATHs.split(':')
-        for p in env_PYTHONPATHs:
-            if len(p)>0:
-                logger.info('      '+p)
-    logger.info('  Numpy version: '+numpy.version.version)
-    logger.info('  Theano version: '+theano.version.version)
-    logger.info('    THEANO_FLAGS: '+os.getenv('THEANO_FLAGS'))
-    logger.info('    device: '+theano.config.device)
-
-    # Check for the presence of git
-    ret = os.system('git status > /dev/null')
-    if ret==0:
-        logger.info('  Git is available in the working directory:')
-        git_describe = subprocess.Popen(['git', 'describe', '--tags', '--always'], stdout=subprocess.PIPE).communicate()[0][:-1]
-        logger.info('    Merlin version: {}'.format(git_describe))
-        git_branch = subprocess.Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=subprocess.PIPE).communicate()[0][:-1]
-        logger.info('    branch: {}'.format(git_branch))
-        git_diff = subprocess.Popen(['git', 'diff', '--name-status'], stdout=subprocess.PIPE).communicate()[0]
-        if sys.version_info.major >= 3:
-            git_diff = git_diff.decode('utf-8')
-        git_diff = git_diff.replace('\t',' ').split('\n')
-        logger.info('    diff to Merlin version:')
-        for filediff in git_diff:
-            if len(filediff)>0: logger.info('      '+filediff)
-        logger.info('      (all diffs logged in '+os.path.basename(cfg.log_file)+'.gitdiff'+')')
-        os.system('git diff > '+cfg.log_file+'.gitdiff')
-
-    logger.info('Execution information:')
-    logger.info('  HOSTNAME: '+socket.getfqdn())
-    logger.info('  USER: '+os.getenv('USER'))
-    logger.info('  PID: '+str(os.getpid()))
-    PBS_JOBID = os.getenv('PBS_JOBID')
-    if PBS_JOBID:
-        logger.info('  PBS_JOBID: '+PBS_JOBID)
-
+    cfg.configure(config_file, use_logging=LOGGING_ACTIVE)
 
     if cfg.profile:
         logger.info('profiling is activated')
@@ -1318,5 +839,15 @@ if __name__ == '__main__':
 
     else:
         main_function(cfg)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print('usage: run_merlin.sh [config file name]')
+        sys.exit(1)
+
+    config_file = sys.argv[1]
+
+    run_wconfig(config_file)
 
     sys.exit(0)

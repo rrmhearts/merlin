@@ -21,7 +21,8 @@ mkdir -p $labels/full
 
 for utt in $utts/*.utt; do \
 	base=`basename $utt .utt`; \
-	echo $base
+	# echo $base # need for speed
+
 	if [ -s $utt ]; then \
 		$dumpfeats      -eval     $scripts/extra_feats.scm \
 				-relation Segment \
@@ -29,7 +30,21 @@ for utt in $utts/*.utt; do \
 				-output   $labels/tmp \
 				$utt; \
 	fi; \
-	gawk -f $scripts/label-full.awk $labels/tmp > $labels/full/$base.lab; \
-	gawk -f $scripts/label-mono.awk $labels/tmp > $labels/mono/$base.lab; \
+
+			gawk -f $scripts/label-full.awk $labels/tmp > $labels/full/$base.lab; \
+			gawk -f $scripts/label-mono.awk $labels/tmp > $labels/mono/$base.lab; \
+
 done
 rm -f tmp
+
+### Conditionally gawk if dumpfeats succeeds..
+		# if [ $? -eq 0 ]; then
+
+		# else
+		# 	echo "Command failed"
+		# 	echo $dumpfeats      -eval     $scripts/extra_feats.scm \
+		# 				-relation Segment \
+		# 				-feats    $scripts/label.feats \
+		# 				-output   $labels/tmp \
+		# 				$utt;
+		# fi

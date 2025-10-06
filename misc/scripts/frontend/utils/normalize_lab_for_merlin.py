@@ -29,7 +29,7 @@ def normalize_dur(dur):
 
     return dur
 
-def normalize_label_files(in_lab_file, out_lab_file, label_style, write_time_stamps):
+def normalize_label_files(in_lab_file, out_lab_file, label_style, write_time_stamps=False):
     out_f = open(out_lab_file,'w')
 
     in_f = open(in_lab_file,'r')
@@ -83,7 +83,7 @@ def normalize_label_files(in_lab_file, out_lab_file, label_style, write_time_sta
             merged_data[1][j]=str(end_time)
 
         if (int(merged_data[1][j])-int(merged_data[0][j]))==0:
-            print('Error: zero duration for this phone')
+            print("Error: zero duration for phone {} in file {}!".format( str(ph_end) if ph_end else "Empty", in_lab_file) )
             raise
 
         if label_style == "phone_align":
@@ -101,21 +101,7 @@ def normalize_label_files(in_lab_file, out_lab_file, label_style, write_time_sta
 
     out_f.close()
 
-if __name__ == "__main__":
-
-    if len(sys.argv)<5:
-        print('Usage: python normalize_lab_for_merlin.py <input_lab_dir> <output_lab_dir> <label_style> <file_id_list_scp> <optional: write_time_stamps (1/0)>\n')
-        sys.exit(0)
-
-    in_lab_dir   = sys.argv[1]
-    out_lab_dir  = sys.argv[2]
-    label_style  = sys.argv[3]
-    file_id_list = sys.argv[4]
-
-    write_time_stamps = True
-    if len(sys.argv)==6:
-        if int(sys.argv[5])==0:
-            write_time_stamps = False
+def normalize_lab_merlin(in_lab_dir, out_lab_dir, label_style, file_id, write_time_stamps=True):
 
     if label_style!="phone_align" and label_style!="state_align":
         print("These labels %s are not supported as of now...please use state_align or phone_align!!" % (label_style))
@@ -124,14 +110,42 @@ if __name__ == "__main__":
     if not os.path.exists(out_lab_dir):
         os.makedirs(out_lab_dir)
 
-    in_f = open(file_id_list,'r')
 
-    for i in in_f.readlines():
-        filename = i.strip()+'.lab'
-        print(filename)
-        in_lab_file  = os.path.join(in_lab_dir, filename)
-        out_lab_file = os.path.join(out_lab_dir, filename)
+    if ".scp" in file_id or ".lab" not in file_id:
+        # print(__file__, ".scp file: {file_id}")
+        in_f = open(file_id,'r')
+        for i in in_f.readlines():
+            filename = i.strip()+'.lab'
+            # print(filename) # need for speed
+            in_lab_file  = os.path.join(in_lab_dir, filename)
+            out_lab_file = os.path.join(out_lab_dir, filename)
+            normalize_label_files(in_lab_file, out_lab_file, label_style, write_time_stamps)
+        in_f.close()
+    else:
+        in_lab_file  = os.path.join(in_lab_dir, file_id)
+        out_lab_file = os.path.join(out_lab_dir, file_id)
         normalize_label_files(in_lab_file, out_lab_file, label_style, write_time_stamps)
-        #break;
 
-    in_f.close()
+if __name__ == "__main__":
+
+    if len(sys.argv)<5:
+        print('Usage: python normalize_lab_for_merlin.py <input_lab_dir> <output_lab_dir> <label_style> <file_id[_list_scp]> <optional: write_time_stamps (1/0)>\n')
+        sys.exit(0)
+
+    in_lab_dir   = sys.argv[1]
+    out_lab_dir  = sys.argv[2]
+    label_style  = sys.argv[3]
+
+    # This may be a scp file or not
+    file_id = sys.argv[4]
+
+    print("in lab:", in_lab_dir)
+    print("out lab:", out_lab_dir)
+    print("label_style:", label_style)
+    print("file id:", file_id)
+
+    write_time_stamps = True
+    if len(sys.argv)==6:
+        if int(sys.argv[5])==0:
+            write_time_stamps = False
+    normalize_lab_merlin(in_lab_dir, out_lab_dir, label_style, file_id, write_time_stamps=write_time_stamps)

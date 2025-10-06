@@ -23,8 +23,10 @@ if [ "$setup_data" = true ]; then
     mkdir -p database
 
     # copy data
-    mv wav database/wav
+    mv wav database/
     mv txt.data database/
+    mkdir database/lab 
+    mkdir database/lab/label_state_align 
 
     rm -rf wav.zip 
 fi
@@ -34,11 +36,11 @@ if [ "$train_tts" = true ]; then
     # step 1: run setup
     ./01_setup.sh $voice_name
 
-    # step 2: prepare labels
-    ./02_prepare_labels.sh database/wav database/txt.data database/labels
-
+    # step 2: prepare labels 
+    ./02_prepare_labels.sh database/wav database/txt.data database/lab 
+    
     # step 3: extract acoustic features
-    ./03_prepare_acoustic_features.sh database/wav database/feats
+    ./03_prepare_acoustic_features.sh database/wav database/feats 
 
     # step 4: prepare config files for training and testing
     ./04_prepare_conf_files.sh conf/global_settings.cfg
@@ -61,4 +63,5 @@ if [ "$run_tts" = true ]; then
 
 fi
 
+# synthesized audio files are in: experiments/slt_arctic/test_synthesis/wav
 echo "done...!"

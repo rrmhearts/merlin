@@ -39,7 +39,10 @@
 
 
 import sys, numpy
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 import  logging
 from scipy.stats.stats import pearsonr
 
@@ -254,7 +257,7 @@ class IndividualDistortionComp(object):
         return f0_corr
 
     def compute_corr(self, ref_data, gen_data):
-        corr_coef = pearsonr(ref_data, gen_data)
+        corr_coef = pearsonr(numpy.squeeze(ref_data), numpy.squeeze(gen_data) )
 
         return corr_coef[0]
 

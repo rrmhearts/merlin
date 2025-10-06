@@ -1,3 +1,60 @@
+################################################################################
+#
+#   SCRIPT NAME: mean_variance_norm.py
+#   VERSION:     1.0
+#
+#   DESCRIPTION:
+#       A utility class for performing Mean and Variance Normalization (MVN)
+#       on acoustic features stored in HTK's binary format. This script is
+#       designed to be imported as a module by other data processing or model
+#       training scripts.
+#
+#       The class can compute corpus-wide mean and standard deviation vectors
+#       from a list of feature files. It then uses these statistics to normalize
+#       the features to have a zero mean and unit variance. This is a critical
+#       pre-processing step for stabilizing and improving the performance of
+#       HMM or neural network-based acoustic models. It also provides a method
+#       for denormalization, which is required during synthesis.
+#
+#   DEPENDENCIES:
+#       - numpy
+#       - Custom HTK I/O libraries (`htk_io`, `htkmfc`) for reading/writing
+#         binary feature files.
+#
+#   CLASS PROVIDED:
+#       - MeanVarianceNorm(feature_dimension)
+#
+#   KEY METHODS:
+#       - feature_normalisation(in_file_list, out_file_list):
+#         Computes statistics (if not already cached) and normalizes a set of
+#         input files, writing the results to the output files.
+#
+#       - feature_denormalisation(in_file_list, out_file_list, mean, std):
+#         Performs the inverse operation, converting normalized features back
+#         to their original scale.
+#
+#   USAGE:
+#       This script is intended to be imported as a module, not run directly.
+#
+#   EXAMPLE:
+#       ------------------------------------------------------------------------
+#       from mean_variance_norm import MeanVarianceNorm
+#
+#       # List of feature files to process
+#       input_mfc_files = ['file1.mfc', 'file2.mfc']
+#       output_mfc_files = ['file1_norm.mfc', 'file2_norm.mfc']
+#
+#       # Create an instance for 39-dimensional features
+#       normaliser = MeanVarianceNorm(feature_dimension=39)
+#
+#       # Normalize the files. The class will compute and cache the
+#       # mean/std vectors on the first call.
+#       mean_vec, std_vec = normaliser.feature_normalisation(
+#                                           input_mfc_files,
+#                                           output_mfc_files)
+#       ------------------------------------------------------------------------
+#
+################################################################################
 
 from htk_io import HTK_Parm_IO
 from htkmfc import HTKFeat_read,HTKFeat_write

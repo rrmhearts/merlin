@@ -45,6 +45,7 @@ def read_file_list(file_name):
   logger = logging.getLogger('read_file_list')
 
   file_lists = []
+  # print(f"filename: {file_name}")
   fid = open(file_name)
   for line in fid.readlines():
     line = line.strip()

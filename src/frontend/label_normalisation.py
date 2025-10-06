@@ -2,10 +2,16 @@
 import os
 import numpy, re, sys
 from multiprocessing import Pool
-from io_funcs.binary_io import BinaryIOCollection
+
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
+
 from .linguistic_base import LinguisticBase
 
-import matplotlib.mlab as mlab
+from scipy.stats import norm
+
 import math
 
 import logging
@@ -295,7 +301,7 @@ class HTSLabelNormalisation(LabelNormalisation):
             current_index += 1
 
         if feat_size == "MLU":
-            for seg_indx in xrange(len(MLU_dur)):
+            for seg_indx in range(len(MLU_dur)):
                 seg_len = len(MLU_dur[seg_indx])
                 current_block_array = numpy.reshape(numpy.array(MLU_dur[seg_indx]), (-1, 1))
                 dur_feature_matrix[dur_feature_index:dur_feature_index+seg_len, ] = current_block_array
@@ -639,10 +645,10 @@ class HTSLabelNormalisation(LabelNormalisation):
                 state_number = 5 # hard coded here 
                 phone_duration = sum(dur_data[i, :])
                 state_duration_base = 0
-                for state_index in xrange(1, state_number+1):
+                for state_index in range(1, state_number+1):
                     state_index_backward = (state_number - state_index) + 1
                     frame_number = int(dur_data[i][state_index-1])
-                    for j in xrange(frame_number):
+                    for j in range(frame_number):
                         duration_feature_array[frame_index, 0] = float(j+1) / float(frame_number)   ## fraction through state (forwards)
                         duration_feature_array[frame_index, 1] = float(frame_number - j) / float(frame_number)  ## fraction through state (backwards)
                         duration_feature_array[frame_index, 2] = float(frame_number)  ## length of state in frames
@@ -675,9 +681,9 @@ class HTSLabelNormalisation(LabelNormalisation):
 
         sigma = 0.4
 
-        cc_features[0, :] = mlab.normpdf(x1, mu1, sigma)
-        cc_features[1, :] = mlab.normpdf(x2, mu2, sigma)
-        cc_features[2, :] = mlab.normpdf(x3, mu3, sigma)
+        cc_features[0, :] = norm.pdf(x1, mu1, sigma)
+        cc_features[1, :] = norm.pdf(x2, mu2, sigma)
+        cc_features[2, :] = norm.pdf(x3, mu3, sigma)
 
         return cc_features
 
@@ -717,9 +723,9 @@ class HTSLabelNormalisation(LabelNormalisation):
         sigma2 = sigma-1
         sigma3 = sigma
 
-        y1 = mlab.normpdf(x1, mu1, sigma1)
-        y2 = mlab.normpdf(x2, mu2, sigma2)
-        y3 = mlab.normpdf(x3, mu3, sigma3)
+        y1 = norm.pdf(x1, mu1, sigma1)
+        y2 = norm.pdf(x2, mu2, sigma2)
+        y3 = norm.pdf(x3, mu3, sigma3)
 
         for i in range(dur):
             cc_feat_matrix[i,0] = y1[(dur+1+i)*10]

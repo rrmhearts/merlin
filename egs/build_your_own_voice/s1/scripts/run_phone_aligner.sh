@@ -1,5 +1,49 @@
 #!/bin/bash -e
 
+################################################################################
+#
+#   SCRIPT NAME: run_phone_aligner.sh
+#   VERSION:     1.0
+#
+#   DESCRIPTION:
+#       Performs forced alignment to generate time-aligned phonetic labels from
+#       audio (.wav) files and their corresponding text transcriptions (.txt).
+#       This script automates the entire process by leveraging the FestVox
+#       Clustergen toolkit's HMM-based aligner (ehmm).
+#
+#       The final output is a set of Merlin-compatible, full-context label
+#       files that contain accurate timing information for each phoneme, derived
+#       directly from the audio.
+#
+#   DEPENDENCIES:
+#       - bash
+#       - A configured environment with paths to:
+#         - Festival (FESTDIR)
+#         - FestVox (FESTVOXDIR)
+#         - Edinburgh Speech Tools (ESTDIR)
+#       - Python and required Merlin utility scripts.
+#
+#   WORKFLOW:
+#       1. Sets up a temporary FestVox Clustergen voice build environment.
+#       2. Copies the user-provided WAV files and text data into the project.
+#       3. Runs the Clustergen build process, which performs forced alignment
+#          to create time-aligned Festival utterance (.utt) files.
+#       4. Calls the 'make_labels' script to convert these timed .utt files
+#          into full-context label files.
+#       5. Normalizes the labels into the final format required for Merlin.
+#
+#   USAGE:
+#       ./run_phone_aligner.sh <path_to_wav_dir> <path_to_text_dir> \
+#                              <path_to_output_labels_dir> <path_to_global_conf>
+#
+#   EXAMPLE:
+#       ./run_phone_aligner.sh database/wav database/txt \
+#                              database/labels conf/global_settings.cfg
+#
+################################################################################
+
+source "$(dirname "$0")/../../.env"
+
 if test "$#" -ne 4; then
     echo "Usage: ./run_phone_aligner.sh <path_to_wav_dir> <path_to_text_dir> <path_to_labels_dir> <path_to_global_conf_file>"
     exit 1

@@ -38,7 +38,10 @@
 ################################################################################
 
 
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 import  logging
 import  numpy
 
@@ -91,14 +94,14 @@ class   MeanVarianceNorm(FeatureNormBase):
         try:
             assert len(in_file_list) == len(out_file_list)
         except  AssertionError:
-            logger.critical('The input and output file numbers are not the same! %d vs %d' %(len(in_file_list), len(out_file_list)))
-            raise
+            # logger.critical('The input and output file numbers are not the same! %d vs %d' %(len(in_file_list), len(out_file_list)))
+            raise AssertionError('The input and output file numbers are not the same! %d vs %d' %(len(in_file_list), len(out_file_list)))
 
         try:
             assert  mean_vector.size == self.feature_dimension and std_vector.size == self.feature_dimension
         except AssertionError:
-            logger.critical('the dimensionalities of the mean and standard derivation vectors are not the same as the dimensionality of the feature')
-            raise
+            # logger.critical('the dimensionalities of the mean and standard derivation vectors are not the same as the dimensionality of the feature')
+            raise AssertionError('the dimensionalities of the mean and standard derivation vectors are not the same as the dimensionality of the feature')
 
         for i in range(file_number):
             features, current_frame_number = io_funcs.load_binary_file_frame(in_file_list[i], self.feature_dimension)

@@ -21,6 +21,7 @@ __author__ = 'pasindu@google.com (Pasindu De Silva)'
 import os
 from .utils import prepare_file_path_list
 from .utils import read_file_list
+import numpy
 
 
 class FilePaths(object):
@@ -61,11 +62,24 @@ class FilePaths(object):
         str(self.cfg.cmp_dim))
     self.model_dir = os.path.join(self.cfg.work_dir, 'nnets_model')
     self.gen_dir = os.path.join(self.cfg.work_dir, 'gen')
-    self.file_id_list = read_file_list(self.cfg.file_id_scp)
+
+    if self.cfg.TRAINDNN:
+      self.file_id_list = read_file_list(self.cfg.file_id_scp)
+    else: 
+      self.file_id_list = ["e"] * (cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number)
+    
     self.bottleneck_features = os.path.join(self.gen_dir, 'bottleneck_features')
 
+    # if self.cfg.GenTestList:
+    #   self.test_id_list = read_file_list(cfg.test_id_scp)
     if self.cfg.GenTestList:
-      self.test_id_list = read_file_list(cfg.test_id_scp)
+      # print(f"filename of test_id: {cfg.test_id_scp}") # need for speed
+      # if lab file, create batch of one, else read in batch from file
+      
+      if ".lab" in cfg.test_id_scp or "cat" in cfg.test_id_scp:
+        self.test_id_list = [ cfg.test_id_scp ]
+      else:
+        self.test_id_list = read_file_list(cfg.test_id_scp) # .scp file contains batch
 
     self.norm_info_file = os.path.join(self.inter_data_dir,
                                        self._NORM_INFO_FILE_NAME %
@@ -88,8 +102,8 @@ class FilePaths(object):
     self.nn_cmp_norm_file_list = prepare_file_path_list(
         self.file_id_list, self.nn_cmp_norm_dir, self.cfg.cmp_ext)
 
-  def get_nnets_file_name(self):
-    return '%s/%s.model' % (self.model_dir, self.cfg.model_file_name)
+  # def get_nnets_file_name(self):
+  #   return '%s/%s.model' % (self.model_dir, self.cfg.model_file_name)
 
   def get_temp_nn_dir_name(self):
     return self.cfg.model_file_name

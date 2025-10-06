@@ -41,9 +41,14 @@ import os
 import sys
 import time
 
-from keras_lib import configuration
-from keras_lib import data_utils
-from keras_lib.train import TrainKerasModels
+try:
+    from keras_lib import configuration
+    from keras_lib import data_utils
+    from keras_lib.train import TrainKerasModels
+except ModuleNotFoundError:
+    from .keras_lib import configuration
+    from .keras_lib import data_utils
+    from .keras_lib.train import TrainKerasModels
 
 class KerasClass(object):
 
@@ -142,7 +147,12 @@ class KerasClass(object):
         self.gen_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, pred_feat_dir, out_file_ext)
 
         if self.GenTestList:
-            test_id_list = data_utils.read_file_list(test_id_scp)
+            # test_id_list = data_utils.read_file_list(test_id_scp)
+            if ".lab" in test_id_scp or "cat" in test_id_scp:
+                test_id_list = [ test_id_scp ] 
+            else:
+                test_id_list = data_utils.read_file_list(test_id_scp)
+
             self.inp_test_file_list = data_utils.prepare_file_path_list(test_id_list, inp_feat_dir, inp_file_ext)
             self.gen_test_file_list = data_utils.prepare_file_path_list(test_id_list, pred_feat_dir, out_file_ext)
 
@@ -219,6 +229,11 @@ class KerasClass(object):
 
         #### compute predictions ####
         self.keras_models.predict(test_x, self.out_scaler, self.gen_test_file_list, self.sequential_training)
+
+        #### after using the model, save as Keras 3 format! ####
+        keras_model_file = os.path.splitext(self.h5_model_file)[0] + '.keras'
+        if not os.path.exists(keras_model_file):
+            self.keras_models.model.save(keras_model_file)
 
     def main_function(self):
         ### Implement each module ###

@@ -38,17 +38,14 @@
 ################################################################################
 
 import sys
-if sys.version_info.major >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 import logging
 import os
 
 class configuration(object):
 
     def __init__(self):
-        pass;
+        pass
 
     def configure(self, configFile=None):
 
@@ -78,16 +75,6 @@ class configuration(object):
         self.complete_configuration()
 
         logger.debug('configuration completed')
-
-    def initial_configuration(self):
-
-        # to be called before loading any user specific values
-
-        # things to put here are
-        # 1. variables that the user cannot change
-        # 2. variables that need to be set before loading the user's config file
-
-        UTTID_REGEX = '(.*)\..*'
 
     def user_configuration(self,configFile=None):
 

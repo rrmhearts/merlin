@@ -5,7 +5,7 @@ if test "$#" -ne 2; then
     echo "Usage: $0 <HTK_USERNAME> <HTK_PASSWORD>"
     echo "Please register here at http://htk.eng.cam.ac.uk/register.shtml"
     echo "################################"
-    exit 1
+    # exit 1
 fi
 
 current_working_dir=$(pwd)
@@ -22,25 +22,37 @@ HDECODE_URL=http://htk.eng.cam.ac.uk/ftp/software/hdecode/HDecode-3.4.1.tar.gz
 ## Download HTS patch:
 HTS_PATCH_URL=http://hts.sp.nitech.ac.jp/archives/2.3alpha/HTS-2.3alpha_for_HTK-3.4.1.tar.bz2
 
-if hash wget 2>/dev/null; then
+if test "$#" -eq 2 && hash wget 2>/dev/null; then
     wget $HTK_URL --http-user=$HTK_USERNAME --http-password=$HTK_PASSWORD
     wget $HDECODE_URL --http-user=$HTK_USERNAME --http-password=$HTK_PASSWORD
     wget $HTS_PATCH_URL
+
+    cp HTK*.tar.gz HDecode*.tar.gz HTS*.tar.bz2 htk_files/
 else
-    echo "please download HTK from $HTK_URL"
-    echo "please download HDECODE from $HDECODE_URL"
-    echo "please download HTS PATCH from $HTS_PATCH_URL"
-    exit 1
+    echo "will attempt with local versions"
+    cp htk_files/* .
 fi
 
 ## Unpack everything:
-tar xzf HTK-3.4.1.tar.gz
-tar xzf HDecode-3.4.1.tar.gz
-tar xf HTS-2.3alpha_for_HTK-3.4.1.tar.bz2
+tar xzf HTK-3.4.1.tar.gz 2> /dev/null
+FINALCODE=$?
+tar xzf HDecode-3.4.1.tar.gz 2> /dev/null
+exitcode=$? 
+FINALCODE=$(if [ "$exitcode" -eq 0 ]; then echo $FINALCODE; else echo $exitcode; fi)
+tar xf HTS-2.3alpha_for_HTK-3.4.1.tar.bz2 2> /dev/null
+exitcode=$? 
+FINALCODE=$(if [ "$exitcode" -eq 0 ]; then echo $FINALCODE; else echo $exitcode; fi)
 
+if [ "$FINALCODE" -ne "0" ]; then
+    echo "FAILED to open local versions"
+    echo "please download HTK from $HTK_URL"
+    echo "please download HDECODE from $HDECODE_URL"
+    echo "please download HTS PATCH from $HTS_PATCH_URL"
+    exit $FINALCODE
+fi
 # apply HTS patch
 cd htk
-patch -p1 -d . < ../HTS-2.3alpha_for_HTK-3.4.1.patch
+patch -p1 -N -d . < ../HTS-2.3alpha_for_HTK-3.4.1.patch
 
 echo "compiling HTK..."
 (
@@ -61,5 +73,16 @@ if [[ ! -f ${HTK_BIN_DIR}/HVite ]]; then
     exit 1
 else
     echo "HTK successfully installed...!"
+    cd ..
+    rm HTK*.tar.gz
+    rm HTS*
+    rm HDecode*.tar.gz
+    rm ChangeLog COPYING INSTALL README #HTK files
 fi
 
+export HTKDIR=$tools_dir/bin/htk
+
+line_to_add="export HTKDIR=$tools_dir/bin/htk"
+if ! grep -qF "$line_to_add" ~/.bashrc; then
+  echo "$line_to_add" >> ~/.bashrc
+fi

@@ -39,7 +39,10 @@
 
 
 import sys, numpy, re, math
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 from multiprocessing.dummy import Pool as ThreadPool
 
 
@@ -138,7 +141,8 @@ class SilenceRemover(object):
 
             label_binary_flag = self.check_silence_pattern(full_label)
 
-            if self.remove_frame_features:
+            # frame_number is conditionally defined above
+            if self.remove_frame_features and 'frame_number' in vars():
                 if label_binary_flag == 0:
                     for frame_index in range(frame_number):
                         nonsilence_frame_index_list.append(base_frame_index + frame_index)
@@ -177,7 +181,8 @@ class SilenceRemover(object):
 
             label_binary_flag = self.check_silence_pattern(full_label)
 
-            if self.remove_frame_features:
+            # frame_number is conditionally defined above
+            if self.remove_frame_features and 'frame_number' in vars():
                 if label_binary_flag == 0:
                     for frame_index in range(frame_number):
                         nonsilence_frame_index_list.append(base_frame_index + frame_index)
