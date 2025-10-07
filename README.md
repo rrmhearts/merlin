@@ -35,9 +35,9 @@ To install Merlin, `cd` merlin and run the below steps:
 
 - Install some basic tools in Merlin
 ```sh
-bash tools/compile_tools.sh
+bash ./install.sh
 ```
-- Install python dependencies
+- Install python dependencies if something is missing
 ```sh
 pip install -r requirements.txt
 ```
@@ -51,7 +51,7 @@ Getting started with Merlin
 
 To run the example system builds, see `egs/README.txt`
 
-As a first demo, please follow the scripts in `egs/slt_arctic`
+As a first demo, please follow the scripts in `egs/slt_arctic` or `egs/build_your_own_voice/s1[_python]`
 
 Now, you can also follow Josh Meyer's [blog post](http://jrmeyer.github.io/tts/2017/02/14/Installing-Merlin.html) for detailed instructions <br/> on how to install Merlin and build SLT demo voice.
 

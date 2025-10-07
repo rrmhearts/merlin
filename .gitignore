@@ -70,7 +70,7 @@ tools/speech_tools
 tools/SPTK-3.9
 tools/REAPER/
 tools/do_arctic.sh
-
+tools/festival
 tools/do_arctic.sh
 
 # deps

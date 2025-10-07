@@ -1,5 +1,9 @@
 Credits
 =======
+  - Python 3.10 Conversion
+    * [Ryan McCoppin](https://github.com/rrmhearts)<br/>
+      Bug fixing and maintainter on this repository
+      
   - Showdown v0
     * [Srikanth Ronanki](https://github.com/ronanki)<br/>
       Bug fixing and current Github project maintainer
