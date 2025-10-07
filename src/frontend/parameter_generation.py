@@ -41,7 +41,8 @@ try:
     from io_funcs.binary_io import BinaryIOCollection
 except ModuleNotFoundError:
     from ..io_funcs.binary_io import BinaryIOCollection
-import os, re, numpy
+import os, re, sys
+import numpy
 import logging
 
 from .mlpg_fast import MLParameterGenerationFast as MLParameterGeneration

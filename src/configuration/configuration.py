@@ -107,7 +107,8 @@ class configuration(object):
         # load the config file
         try:
             cfgparser = configparser.ConfigParser()
-            cfgparser.readfp(open(configFile))
+            ## DeprecationWarning # cfgparser.readfp(open(configFile))
+            cfgparser.read_file(open(configFile))
             logger.debug('successfully read and parsed user configuration file %s' % configFile)
         except:
             logger.fatal('error reading user configuration file %s' % configFile)
@@ -140,17 +141,6 @@ class configuration(object):
         self.def_inp_dir    = os.path.join(self.inter_data_dir, 'nn_no_silence_lab_norm_425')
         self.def_out_dir    = os.path.join(self.inter_data_dir, 'nn_norm_mgc_lf0_vuv_bap_187')
 
-
-        # a list instead of a dict because OrderedDict is not available until 2.7
-        # and I don't want to import theano here just for that one class
-        # each entry is a tuple of (variable name, default value, section in config file, option name in config file)
-        #
-        # the type of the default value is important and controls the type that the corresponding
-        # variable will have
-        #
-        # to set a default value of 'undefined' use an empty string
-        # or the special value 'impossible', as appropriate
-        #
         impossible_int=int(-99999)
         impossible_float=float(-99999.0)
 
@@ -607,8 +597,7 @@ class configuration(object):
             os.makedirs(self.model_dir)
 
         # model files
-        self.json_model_file = os.path.join(self.model_dir, self.model_file_name+'.json')
-        self.h5_model_file   = os.path.join(self.model_dir, self.model_file_name+'.h5')
+        self.keras_model_file = os.path.join(self.model_dir, self.model_file_name+'.keras')
 
         if not os.path.exists(self.gen_dir):
             os.makedirs(self.gen_dir)

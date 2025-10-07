@@ -29,10 +29,10 @@ Vocoder=$(echo ${Vocoder} | tr '[A-Z]' '[a-z]')
 python ${MerlinDir}/misc/scripts/vocoder/${Vocoder}/extract_features_for_merlin.py ${MerlinDir} ${wav_dir} ${feat_dir} $SamplingFreq 
 
 echo "preparing acoustic features for source voice..."
-./scripts/submit.sh ${MerlinDir}/src/run_merlin.py $test_source_config_file
+python ${MerlinDir}/src/run_merlin.py $test_source_config_file
 
 echo "transforming source voice to target voice..."
-./scripts/submit.sh ${MerlinDir}/src/run_merlin.py $test_synth_config_file
+python ${MerlinDir}/src/run_merlin.py $test_synth_config_file
 
 echo "deleting intermediate synthesis files..."
 ./scripts/remove_intermediate_files.sh $global_config_file
