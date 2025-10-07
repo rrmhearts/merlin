@@ -8,33 +8,64 @@
 current_working_dir=$(pwd)
 tools_dir=${current_working_dir}/$(dirname $0)
 cd $tools_dir
+mkdir -p tar.gz/
 
+remove_festival_speech_tools=true
 install_speech_tools=true
 install_festival=true
 install_festvox=true
+install_flite=true
+internet_connection=$(check_internet)
+
+if [ $internet_connection = "online" ]; then
+  echo "Internet connection is available." $internet_connection
+else
+  echo "Internet connection is not available." $internet_connection
+fi
+
+export USER_CXXFLAGS="-fPIE"
+export USER_CFLAGS="-fPIE"
+export CPPFLAGS="-fPIE"
+export CXXFLAGS="-fPIE"
+export CFLAGS="-fPIE"
+
+# no longer needed
+REinstall_speech_tools=true
+
+# REMEMBER, speech_tools will need re-built on certain changes
+# to Festival. Often this is required! See documentation?
+if [ "$remove_festival_speech_tools" = true ]; then
+    echo "Removing speech tools and festival"
+    rm -rf speech_tools
+fi
 
 # 1. Get and compile speech tools
 if [ "$install_speech_tools" = true ]; then
-    echo "downloading speech tools..."
-    speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
-    if hash curl 2>/dev/null; then
-        curl -L -O $speech_tools_url
-    elif hash wget 2>/dev/null; then
-        wget $speech_tools_url
+
+    if [ $internet_connection = "online" ]; then
+        echo "downloading speech tools..."
+        # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
+        speech_tools_git=https://github.com/festvox/speech_tools
+        git clone $speech_tools_git 
     else
-        echo "please download speech tools from $speech_tools_url"
-        exit 1
+        cp tar.gz/speech_tools.tar.gz .
+        tar xzf speech_tools.tar.gz
     fi
-    tar xzf speech_tools-2.4-release.tar.gz
+    # Patching speech tools may prevent readline errors, but it may also cause featival to seg fault. Suggest not using.
+    # git clone $speech_tools_git && sed -i 's/#define USE_TERMCAP/#ifdef SYSTEM_IS_WIN32\n#define USE_TERMCAP\n#endif/g' ./speech_tools/siod/editline.h
+    
+    # IF these lines are still commented out, uncomment them to build speech_tools.
+    sed -i 's/\/\/int getch(void);/int getch(void);/g' ./speech_tools/include/EST_Token.h
+    sed -i 's/\/\/EST_TokenStream \&getch(char \&C);/EST_TokenStream \&getch(char \&C);/g' ./speech_tools/include/EST_Token.h
 
     echo "compiling speech tools..."
     (
         cd speech_tools;
+        make clean # very important when switching versions of gcc
         ./configure;
         make;
         make install
     )
-
 fi
 
 # export paths
@@ -44,67 +75,23 @@ export PATH=$ESTDIR/bin:$PATH
 
 # 2. Get and compile festival, download dicts and some voices
 if [ "$install_festival" = true ]; then
-    echo "downloading festival..."
-    festival_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/festival-2.4-release.tar.gz
-    if hash curl 2>/dev/null; then
-        curl -L -O $festival_url
-    elif hash wget 2>/dev/null; then
-        wget $festival_url
-    else
-        echo "please download Festival from $festival_url"
-        exit 1
-    fi
-    tar xzf festival-2.4-release.tar.gz
-
+    # Festival is now included in Merlin. No longer need to download!
+    # echo "downloading festival..."
+    # festival_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/festival-2.4-release.tar.gz
+    # festival_git=https://github.com/festvox/festival.git
+    # git clone $festival_git
+    # tar -xzf festival.tar.gz # using the code extraction caused errors.
     echo "compiling festival..."
     (
         cd festival;
+        # patch is applied in downloaded version
+        # patch -p1 < ../ff.cc.patch # work with non-git
+        make clean # very important when switching versions of gcc
         ./configure;
         make;
         make install
+        make default_voices
     )
-
-    echo "downloading some useful lexicons..."
-    dict1_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/festlex_CMU.tar.gz
-    dict2_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/festlex_OALD.tar.gz
-    dict3_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/festlex_POSLEX.tar.gz
-    if hash curl 2>/dev/null; then
-        curl -L -O $dict1_url
-        curl -L -O $dict2_url
-        curl -L -O $dict3_url
-    elif hash wget 2>/dev/null; then
-        wget $dict1_url
-        wget $dict2_url
-        wget $dict3_url
-    else
-        echo "please download dictionaries from $festival_url"
-        exit 1
-    fi
-    tar xzf festlex_CMU.tar.gz
-    tar xzf festlex_OALD.tar.gz
-    tar xzf festlex_POSLEX.tar.gz
-
-    echo "downloading some voices for English..."
-    festival_voice_url=http://festvox.org/packed/festival/2.4/voices
-    voice1_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/voices/festvox_kallpc16k.tar.gz
-    voice2_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/voices/festvox_rablpc16k.tar.gz
-    voice3_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/voices/festvox_cmu_us_slt_cg.tar.gz
-    if hash curl 2>/dev/null; then
-        curl -L -O $voice1_url
-        curl -L -O $voice2_url
-        curl -L -O $voice3_url
-    elif hash wget 2>/dev/null; then
-        wget $voice1_url
-        wget $voice2_url
-        wget $voice3_url
-    else
-        echo "please download Festival voices from $festival_voice_url"
-        exit 1
-    fi
-    tar xzf festvox_kallpc16k.tar.gz
-    tar xzf festvox_rablpc16k.tar.gz
-    tar xzf festvox_cmu_us_slt_cg.tar.gz
-
 fi
 
 # export paths
@@ -113,17 +100,18 @@ export PATH=$FESTDIR/bin:$PATH
 
 # 3. Get and compile festvox
 if [ "$install_festvox" = true ]; then
-    echo "downloading festvox..."
-    festvox_url=http://festvox.org/festvox-2.7/festvox-2.7.0-release.tar.gz
-    if hash curl 2>/dev/null; then
-        curl -L -O $festvox_url
-    elif hash wget 2>/dev/null; then
-        wget $festvox_url
+    if [ $internet_connection = "online" ]; then
+        echo "downloading festvox..."
+        # festvox_url=http://festvox.org/festvox-2.7/festvox-2.7.0-release.tar.gz
+        festvox_git=https://github.com/festvox/festvox
+        git clone $festvox_git
+
+        tar -czf festvox.tar.gz festvox/
+        mv festvox.tar.gz tar.gz/ 2>/dev/null
     else
-        echo "please download festvox from $festvox_url"
-        exit 1
+        cp tar.gz/festvox.tar.gz . 2>/dev/null
+        tar xzf festvox.tar.gz 2>/dev/null
     fi
-    tar xzf festvox-2.7.0-release.tar.gz
 
     echo "compiling festvox..."
     (
@@ -131,14 +119,15 @@ if [ "$install_festvox" = true ]; then
         ./configure;
         make;
     )
-
 fi
 
 # export paths
 export FESTVOXDIR=$tools_dir/festvox
 
 echo "deleting downloaded tar files..."
-rm -rf $tools_dir/*.tar.gz
+mv $tools_dir/*.tar.gz $tools_dir/tar.gz/
+# rm -rf $tools_dir/*.tar.gz
+# find $tools_dir/*.tar.gz -type f -not -name 'festival.tar.gz' -delete
 
 if [[ ! -f ${ESTDIR}/bin/ch_track ]]; then
     echo "Error installing speech tools"
@@ -153,3 +142,73 @@ else
     echo "All tools successfully compiled!!"
 fi
 
+# 5. Get and compile flite
+if [ "$install_flite" = true ]; then
+    if [ $internet_connection = "online" ]; then
+        echo "downloading flite..."
+        # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
+        flite_git=http://github.com/festvox/flite
+        git clone $flite_git
+        tar -czf flite.tar.gz flite/
+        mv flite.tar.gz tar.gz/ 2>/dev/null
+    else
+        cp tar.gz/flite.tar.gz . 2>/dev/null
+        tar xzf flite.tar.gz 2>/dev/null
+    fi
+
+    echo "compiling speech tools..."
+    (
+        cd flite;
+        ./configure;
+        make;
+    )
+fi
+
+# 6. Rebuild speech_tools without rebuilding festival
+# This is for VoiceServer to work. This will break festival if it is rebuilt with this as dependency.
+if [ "$REinstall_speech_tools" = true ]; then
+    echo "reinstall speech tools..."
+    # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
+    # speech_tools_git=https://github.com/festvox/speech_tools
+    # git clone $speech_tools_git 
+    # Patching speech tools may prevent readline errors, but it may also cause featival to seg fault. Suggest not using.
+    sed -i 's/#define USE_TERMCAP/#ifdef SYSTEM_IS_WIN32\n#define USE_TERMCAP\n#endif/g' ./speech_tools/siod/editline.h
+    
+    echo "compiling speech tools..."
+    (
+        cd speech_tools;
+        make clean
+        ./configure;
+        make;
+        make install
+    )
+
+fi
+
+LINE="export ESTDIR=$tools_dir/speech_tools"
+FILE="$HOME/.bashrc"
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+LINE="export FESTVOXDIR=$tools_dir/festvox"
+FILE="$HOME/.bashrc"
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+LINE="export FLITEDIR=$tools_dir/flite"
+FILE="$HOME/.bashrc"
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+LINE="export SPTKDIR=$tools_dir/SPTK"
+FILE="$HOME/.bashrc"
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+
+LINE="export PATH=$tools_dir/speech_tools/bin:"'${PATH}'
+FILE="$HOME/.bashrc"
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+LINE="export PATH=$tools_dir/festival/bin:"'${PATH}'
+FILE="$HOME/.bashrc"
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+
+FILE="$HOME/.bashrc"
+LINE='export PATH=${HOME}/.local/bin:${PATH}'
+grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
+
+# Clean up
+mv *.tar.gz tar.gz/ 2>/dev/null
+rm HTS* 2>/dev/null

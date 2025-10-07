@@ -1,10 +1,65 @@
+################################################################################
+#
+#   SCRIPT NAME: forced_alignment.py
+#   VERSION:     1.0
+#
+#   DESCRIPTION:
+#       A self-contained Python script that implements a complete HMM-based
+#       acoustic model training and forced alignment pipeline using the HTK
+#       (HMM Tool Kit) as a backend. This script is the core engine called by
+#       the `run_state_aligner.sh` wrapper.
+#
+#       It takes untimed, full-context linguistic labels and corresponding
+#       audio files, and produces time-aligned labels at the HMM state level,
+#       which are required for training Merlin acoustic models.
+#
+#   DEPENDENCIES:
+#       - Python 3
+#       - A full installation of the HTK Speech Recognition Toolkit.
+#       - The `python-dotenv` package.
+#
+#   WORKFLOW:
+#       The script performs a classic HTS-style workflow in three main phases:
+#
+#       1. PREPARATION (`prepare_training`):
+#          - Sets up the directory structure for models, features, and configs.
+#          - Extracts acoustic features (MFCCs) from the audio files using HCopy.
+#          - Performs mean and variance normalization on the features.
+#          - Initializes "flat-start" monophone HMMs by creating a prototype
+#            model and cloning it for every phone in the dataset.
+#
+#       2. HMM TRAINING (`train_hmm`):
+#          - Iteratively trains the monophone HMMs using embedded re-estimation
+#            (HERest) over several epochs.
+#          - Periodically increases model complexity by splitting the Gaussian
+#            mixtures (HHEd).
+#
+#       3. ALIGNMENT & POST-PROCESSING (`align`):
+#          - Uses the final, trained HMMs to perform Viterbi forced alignment
+#            (HVite) on the training data.
+#          - This produces a Master Label File (.mlf) with precise start and
+#            end times for each sub-phonetic HMM state.
+#          - Merges these state timings with the original full-context labels
+#            to create the final, Merlin-compatible state-aligned label files.
+#
+#   USAGE:
+#       This script is not intended to be run directly by the end-user. It is
+#       designed to be executed by a wrapper shell script (e.g.,
+#       `run_state_aligner.sh`) which first prepares the input directories and
+#       configures the necessary paths.
+#
+################################################################################
+
 import os, sys
 import time
+import glob
 
 from sys import argv, stderr
 from subprocess import check_call, Popen, CalledProcessError, PIPE
 from mean_variance_norm import MeanVarianceNorm
+from dotenv import load_dotenv, find_dotenv
 
+load_dotenv(find_dotenv())
 # string constants for various shell calls
 STATE_NUM=5
 F = str(0.01)
@@ -16,7 +71,7 @@ HMMDEFS = 'hmmdefs'
 VFLOORS = 'vFloors'
 
 ##
-HTKDIR = path/to/tools/htk
+HTKDIR=  os.getenv("HTKDIR")
 HCompV = os.path.join(HTKDIR, 'HCompV')
 HCopy  = os.path.join(HTKDIR, 'HCopy' )
 HERest = os.path.join(HTKDIR, 'HERest')
@@ -359,14 +414,22 @@ NUMCEPS = 12
 
 
 if __name__ == '__main__':
+    # no space after var to prevent sed editor
+    work_dir= os.getcwd()
+    try:
+        wav_dir= glob.glob(os.path.join(work_dir, "database/*wav*") )[0]
+        lab_parent= glob.glob(os.path.join(work_dir, "database/*lab*") )[0]
+    except:
+        wav_dir= f"{work_dir}/database/wav"
+        lab_parent= f"{work_dir}/database/lab"
 
-    work_dir = os.getcwd()
+    print("forced alignment paths: {}, {}".format(wav_dir, lab_parent))
 
-    wav_dir = os.path.join(work_dir, 'slt_wav')
-    lab_dir = os.path.join(work_dir, 'label_no_align')
-    lab_align_dir = os.path.join(work_dir, 'label_state_align')
 
-    file_id_list_name = os.path.join(work_dir, 'file_id_list.scp')
+    lab_dir = os.path.join(lab_parent, 'label_no_align')
+    lab_align_dir = os.path.join(lab_parent, 'label_state_align')
+
+    file_id_list_name = os.path.join(lab_parent, 'file_id_list.scp')
 
     ## if multiple_speaker is tuned on. the file_id_list.scp has to reflact this
     ## for example
@@ -376,8 +439,8 @@ if __name__ == '__main__':
     multiple_speaker = False
 
     aligner = ForcedAlignment()
-    aligner.prepare_training(file_id_list_name, wav_dir, lab_dir, work_dir, multiple_speaker)
+    aligner.prepare_training(file_id_list_name, wav_dir, lab_dir, lab_parent, multiple_speaker)
 
     aligner.train_hmm(7, 32)
-    aligner.align(work_dir, lab_align_dir)
+    aligner.align(lab_parent, lab_align_dir)
     print('---done!')

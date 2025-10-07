@@ -41,9 +41,14 @@ import os
 import sys
 import time
 
-from keras_lib import configuration
-from keras_lib import data_utils
-from keras_lib.train import TrainKerasModels
+try:
+    from keras_lib import configuration
+    from keras_lib import data_utils
+    from keras_lib.train import TrainKerasModels
+except ModuleNotFoundError:
+    from .keras_lib import configuration
+    from .keras_lib import data_utils
+    from .keras_lib.train import TrainKerasModels
 
 class KerasClass(object):
 
@@ -101,11 +106,6 @@ class KerasClass(object):
 
         ### define train, valid, test ###
 
-        train_file_number = cfg.train_file_number
-        valid_file_number = cfg.valid_file_number
-        test_file_number  = cfg.test_file_number
-
-        file_id_scp  = cfg.file_id_scp
         test_id_scp  = cfg.test_id_scp
 
         #### main processess ####
@@ -122,29 +122,42 @@ class KerasClass(object):
         ###################################################
 
         #### Create train, valid and test file lists ####
-        file_id_list = data_utils.read_file_list(file_id_scp)
-
-        train_id_list = file_id_list[0: train_file_number]
-        valid_id_list = file_id_list[train_file_number: train_file_number + valid_file_number]
-        test_id_list  = file_id_list[train_file_number + valid_file_number: train_file_number + valid_file_number + test_file_number]
-        
-        valid_test_id_list = file_id_list[train_file_number: train_file_number + valid_file_number + test_file_number]
-
-        self.inp_train_file_list = data_utils.prepare_file_path_list(train_id_list, inp_feat_dir, inp_file_ext)
-        self.out_train_file_list = data_utils.prepare_file_path_list(train_id_list, out_feat_dir, out_file_ext)
-
-        self.inp_valid_file_list = data_utils.prepare_file_path_list(valid_id_list, inp_feat_dir, inp_file_ext)
-        self.out_valid_file_list = data_utils.prepare_file_path_list(valid_id_list, out_feat_dir, out_file_ext)
-
-        self.inp_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, inp_feat_dir, inp_file_ext)
-        self.out_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, out_feat_dir, out_file_ext)
-
-        self.gen_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, pred_feat_dir, out_file_ext)
-
+        ## This section only to be active when training is performed ## 
         if self.GenTestList:
-            test_id_list = data_utils.read_file_list(test_id_scp)
+            # test_id_list = data_utils.read_file_list(test_id_scp)
+            if ".lab" in test_id_scp or "cat" in test_id_scp:
+                test_id_list = [ test_id_scp ] 
+            else:
+                test_id_list = data_utils.read_file_list(test_id_scp)
+
             self.inp_test_file_list = data_utils.prepare_file_path_list(test_id_list, inp_feat_dir, inp_file_ext)
             self.gen_test_file_list = data_utils.prepare_file_path_list(test_id_list, pred_feat_dir, out_file_ext)
+        else: 
+            train_file_number = cfg.train_file_number
+            valid_file_number = cfg.valid_file_number
+            test_file_number  = cfg.test_file_number
+
+            file_id_scp  = cfg.file_id_scp
+            file_id_list = data_utils.read_file_list(file_id_scp)
+
+            train_id_list = file_id_list[0: train_file_number]
+            valid_id_list = file_id_list[train_file_number: train_file_number + valid_file_number]
+            test_id_list  = file_id_list[train_file_number + valid_file_number: train_file_number + valid_file_number + test_file_number]
+            
+            valid_test_id_list = file_id_list[train_file_number: train_file_number + valid_file_number + test_file_number]
+
+            self.inp_train_file_list = data_utils.prepare_file_path_list(train_id_list, inp_feat_dir, inp_file_ext)
+            self.out_train_file_list = data_utils.prepare_file_path_list(train_id_list, out_feat_dir, out_file_ext)
+
+            self.inp_valid_file_list = data_utils.prepare_file_path_list(valid_id_list, inp_feat_dir, inp_file_ext)
+            self.out_valid_file_list = data_utils.prepare_file_path_list(valid_id_list, out_feat_dir, out_file_ext)
+
+            self.inp_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, inp_feat_dir, inp_file_ext)
+            self.out_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, out_feat_dir, out_file_ext)
+
+            self.gen_test_file_list = data_utils.prepare_file_path_list(valid_test_id_list, pred_feat_dir, out_file_ext)
+
+        
 
         #### Define keras models class ####
         self.keras_models = TrainKerasModels(self.inp_dim, self.hidden_layer_size, self.out_dim, self.hidden_layer_type,
@@ -219,6 +232,11 @@ class KerasClass(object):
 
         #### compute predictions ####
         self.keras_models.predict(test_x, self.out_scaler, self.gen_test_file_list, self.sequential_training)
+
+        #### after using the model, save as Keras 3 format! ####
+        keras_model_file = os.path.splitext(self.h5_model_file)[0] + '.keras'
+        if not os.path.exists(keras_model_file):
+            self.keras_models.model.save(keras_model_file)
 
     def main_function(self):
         ### Implement each module ###

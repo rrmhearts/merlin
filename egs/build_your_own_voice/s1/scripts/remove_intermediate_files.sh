@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/../../.env"
 
 if test "$#" -ne 1; then
     echo "Usage: ./scripts/remove_intermediate_files.sh conf/global_settings.cfg"

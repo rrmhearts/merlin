@@ -39,7 +39,11 @@
 
 
 import numpy
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
+
 import logging
 
 class MinMaxNormalisation(object):
@@ -97,11 +101,14 @@ class MinMaxNormalisation(object):
         for i in range(file_number):
             features = io_funcs.load_binary_file(in_file_list[i], self.feature_dimension)
 
-            temp_min = numpy.amin(features, axis = 0)
-            temp_max = numpy.amax(features, axis = 0)
+            try:
+                temp_min = numpy.amin(features, axis = 0)
+                temp_max = numpy.amax(features, axis = 0)
 
-            min_value_matrix[i, ] = temp_min;
-            max_value_matrix[i, ] = temp_max;
+                min_value_matrix[i, ] = temp_min;
+                max_value_matrix[i, ] = temp_max;
+            except ValueError:
+                logger.error(f"File \"merlin/src/frontend/min_max_norm.py\", line 100, in find_min_max_values FAILED, no min or max for {in_file_list[i]}")
 
         self.min_vector = numpy.amin(min_value_matrix, axis = 0)
         self.max_vector = numpy.amax(max_value_matrix, axis = 0)

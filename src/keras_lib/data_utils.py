@@ -44,7 +44,10 @@ import numpy as np
 
 from sklearn import preprocessing
 
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 
 ############################
 ##### Memory variables #####
@@ -99,7 +102,7 @@ def read_data_from_file_list(inp_file_list, out_file_list, inp_dim, out_dim, seq
 
         file_length_dict['utt2framenum'][base_file_name] = frame_number
 
-        drawProgressBar(i+1, num_of_utt)
+        # drawProgressBar(i+1, num_of_utt)
 
     sys.stdout.write("\n")
 
@@ -142,7 +145,7 @@ def read_test_data_from_file_list(inp_file_list, inp_dim, sequential_training=Tr
 
         file_length_dict['utt2framenum'][base_file_name] = frame_number
 
-        drawProgressBar(i+1, num_of_utt)
+        # drawProgressBar(i+1, num_of_utt)
 
     sys.stdout.write("\n")
 
@@ -221,7 +224,7 @@ def read_and_transform_data_from_file_list(in_file_list, dim, seq_length=200, me
         if (i+1)%merge_size == 0:
             current_index = seq_length * (int(np.ceil(float(current_index)/float(seq_length))))
 
-        drawProgressBar(i+1, num_of_utt)
+        # drawProgressBar(i+1, num_of_utt)
 
     sys.stdout.write("\n")
 
@@ -387,14 +390,14 @@ def print_status(i, length):
     sys.stdout.write(("\r%d/%d ")%(i,length)+("[ %d"%pr+"% ] <<< ")+('='*st)+(''*(100-st)))
     sys.stdout.flush()
 
-def drawProgressBar(indx, length, barLen = 20):
-    percent = float(indx)/length
-    sys.stdout.write("\r")
-    progress = ""
-    for i in range(barLen):
-        if i < int(barLen * percent):
-            progress += "="
-        else:
-            progress += " "
-    sys.stdout.write("[%s] <<< %d/%d (%d%%)" % (progress, indx, length, percent * 100))
-    sys.stdout.flush()
+# def drawProgressBar(indx, length, barLen = 20):
+#     percent = float(indx)/length
+#     sys.stdout.write("\r")
+#     progress = ""
+#     for i in range(barLen):
+#         if i < int(barLen * percent):
+#             progress += "="
+#         else:
+#             progress += " "
+#     sys.stdout.write("[%s] <<< %d/%d (%d%%)" % (progress, indx, length, percent * 100))
+#     sys.stdout.flush()

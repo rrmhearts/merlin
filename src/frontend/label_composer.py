@@ -41,9 +41,15 @@
 import logging
 import imp
 import numpy
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 
-from frontend.label_normalisation import HTSLabelNormalisation
+try:
+    from frontend.label_normalisation import HTSLabelNormalisation
+except ModuleNotFoundError:
+    from .label_normalisation import HTSLabelNormalisation
 
 
 # context-dependent printing format for Numpy - should move this out to a utility file somewhere

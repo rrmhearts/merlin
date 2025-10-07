@@ -40,10 +40,7 @@
 
 import math
 import sys
-if sys.version_info.major >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 import os
 import logging
 import io
@@ -65,6 +62,10 @@ class configuration(object):
 
         # get a logger
         logger = logging.getLogger("configuration")
+        if not use_logging:
+            logger.disabled = True
+            logger.propagate = False
+
         # this (and only this) logger needs to be configured immediately, otherwise it won't work
         # we can't use the full user-supplied configuration mechanism in this particular case,
         # because we haven't loaded it yet!
@@ -76,10 +77,6 @@ class configuration(object):
         logger.addHandler(ch)
         formatter = logging.Formatter('%(asctime)s %(levelname)8s%(name)15s: %(message)s')
         ch.setFormatter(formatter)
-
-
-        # first, set up some default configuration values
-        self.initial_configuration()
 
         # next, load in any user-supplied configuration values
         # that might over-ride the default values
@@ -95,17 +92,6 @@ class configuration(object):
         self.complete_configuration()
 
         logger.debug('configuration completed')
-
-    def initial_configuration(self):
-
-        # to be called before loading any user specific values
-
-        # things to put here are
-        # 1. variables that the user cannot change
-        # 2. variables that need to be set before loading the user's config file
-
-        UTTID_REGEX = '(.*)\..*'
-
 
 
     def user_configuration(self,configFile=None):
@@ -293,8 +279,6 @@ class configuration(object):
             ('sequential_training'  , False                                             , 'Architecture', 'sequential_training'),
             ('rnn_batch_training'   , False                                             , 'Architecture', 'rnn_batch_training'),
             ('dropout_rate'         , 0.0                                               , 'Architecture', 'dropout_rate'),
-            ('switch_to_keras'      , False                                             , 'Architecture', 'switch_to_keras'),
-            ('switch_to_tensorflow' , False                                             , 'Architecture', 'switch_to_tensorflow'),
 
             ## some config variables for token projection DNN
             ('scheme'               , 'stagewise'                   , 'Architecture', 'scheme'),
@@ -463,7 +447,6 @@ class configuration(object):
             ('GENWAV'          , False, 'Processes', 'GENWAV'),
             ('CALMCD'          , False, 'Processes', 'CALMCD'),
             ('NORMSTEP'        , False, 'Processes', 'NORMSTEP'),
-            ('GENBNFEA'        , False, 'Processes', 'GENBNFEA'),
 
             ('mgc_ext'   , '.mgc'     , 'Extensions', 'mgc_ext'),
             ('bap_ext'   , '.bap'     , 'Extensions', 'bap_ext'),
@@ -618,70 +601,55 @@ class configuration(object):
                 self.sequential_training = True
                 break
 
-        # switch to tensorflow
-        if self.switch_to_tensorflow:
-            ## create directories if not exists
-            self.model_dir = os.path.join(self.model_dir, "tensorflow")
-            self.model_dir = os.path.join(self.model_dir, self.model_file_name)
-            if not os.path.exists(self.model_dir):
-                os.makedirs(self.model_dir)
+        ## create directories if not exists
+        self.model_dir = os.path.join(self.model_dir, "keras")
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
 
-        # switch to keras
-        if self.switch_to_keras:
-            ## create directories if not exists
-            self.model_dir = os.path.join(self.model_dir, "keras")
-            if not os.path.exists(self.model_dir):
-                os.makedirs(self.model_dir)
+        # model files
+        self.json_model_file = os.path.join(self.model_dir, self.model_file_name+'.json')
+        self.h5_model_file   = os.path.join(self.model_dir, self.model_file_name+'.h5')
 
-            # model files
-            self.json_model_file = os.path.join(self.model_dir, self.model_file_name+'.json')
-            self.h5_model_file   = os.path.join(self.model_dir, self.model_file_name+'.h5')
+        if not os.path.exists(self.gen_dir):
+            os.makedirs(self.gen_dir)
 
-        if self.switch_to_keras and self.switch_to_tensorflow:
-            logger.critical("Please switch to either tensorflow or keras, but not both!!")
-            sys.exit(1)
+        # input-output normalization stat files
+        self.inp_stats_file = os.path.join(self.stats_dir, "input_%d_%s_%d.norm" %(int(self.train_file_number), self.inp_norm, self.inp_dim))
+        self.out_stats_file = os.path.join(self.stats_dir, "output_%d_%s_%d.norm" %(int(self.train_file_number), self.out_norm, self.out_dim))
 
-        if self.switch_to_keras or self.switch_to_tensorflow:
-            if not os.path.exists(self.gen_dir):
-                os.makedirs(self.gen_dir)
+        # define model file name
+        logger.info('model file: %s' % (self.model_file_name))
 
-            # input-output normalization stat files
-            self.inp_stats_file = os.path.join(self.stats_dir, "input_%d_%s_%d.norm" %(int(self.train_file_number), self.inp_norm, self.inp_dim))
-            self.out_stats_file = os.path.join(self.stats_dir, "output_%d_%s_%d.norm" %(int(self.train_file_number), self.out_norm, self.out_dim))
+        # predicted features directory
+        self.pred_feat_dir = os.path.join(self.gen_dir, self.model_file_name)
+        if not os.path.exists(self.pred_feat_dir):
+            os.makedirs(self.pred_feat_dir)
 
-            # define model file name
-            logger.info('model file: %s' % (self.model_file_name))
+        # string.lower for some architecture values
+        self.output_layer_type = self.output_layer_type.lower()
+        self.optimizer         = self.optimizer.lower()
+        self.loss_function     = self.loss_function.lower()
+        for i in range(len(self.hidden_layer_type)):
+            self.hidden_layer_type[i] = self.hidden_layer_type[i].lower()
 
-            # predicted features directory
-            self.pred_feat_dir = os.path.join(self.gen_dir, self.model_file_name)
-            if not os.path.exists(self.pred_feat_dir):
-                os.makedirs(self.pred_feat_dir)
+        # force optimizer to adam if set to sgd
+        if self.optimizer == "sgd":
+            self.optimizer = 'adam'
 
-            # string.lower for some architecture values
-            self.output_layer_type = self.output_layer_type.lower()
-            self.optimizer         = self.optimizer.lower()
-            self.loss_function     = self.loss_function.lower()
-            for i in range(len(self.hidden_layer_type)):
-                self.hidden_layer_type[i] = self.hidden_layer_type[i].lower()
+        # set sequential training True if using LSTMs
+        if 'lstm' in self.hidden_layer_type:
+            self.sequential_training = True
 
-            # force optimizer to adam if set to sgd
-            if self.optimizer == "sgd":
-                self.optimizer = 'adam'
+        # set default seq length for duration model
+        if self.DurationModel and self.training_algo == 3 and self.seq_length>50:
+            self.seq_length = 20
 
-            # set sequential training True if using LSTMs
-            if 'lstm' in self.hidden_layer_type:
-                self.sequential_training = True
-
-            # set default seq length for duration model
-            if self.DurationModel and self.training_algo == 3 and self.seq_length>50:
-                self.seq_length = 20
-
-            # rnn params
-            self.rnn_params = {}
-            self.rnn_params['merge_size']   = self.merge_size
-            self.rnn_params['seq_length']   = self.seq_length
-            self.rnn_params['bucket_range'] = self.bucket_range
-            self.rnn_params['stateful']     = self.stateful
+        # rnn params
+        self.rnn_params = {}
+        self.rnn_params['merge_size']   = self.merge_size
+        self.rnn_params['seq_length']   = self.seq_length
+        self.rnn_params['bucket_range'] = self.bucket_range
+        self.rnn_params['stateful']     = self.stateful
 
     
         ### RNN params
@@ -1068,14 +1036,14 @@ class configuration(object):
             config_string = fp.read()
             fp.close()
 
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             # this means that cfg.log_config_file does not exist and that no default was provided
             # NOTE: currently this will never run
             logging.warn('no logging configuration file provided - using default (console only, DEBUG level)')
 
             # set up a default level and default handlers
             # first, get the root logger - all other loggers will inherit its configuration
-            rootogger = logging.getLogger("")
+            rootlogger = logging.getLogger("")
             # default logging level is DEBUG (a highly-verbose level)
             rootlogger.setLevel(logging.DEBUG)
             # add a handler to write to console
@@ -1113,8 +1081,8 @@ class configuration(object):
 
             try:
                 # pass that string as a filehandle
-                if sys.version_info.major < 3:
-                    config_string = unicode(config_string, "utf-8")
+                # if sys.version_info.major < 3:
+                #     config_string = unicode(config_string, "utf-8")
                 fh = io.StringIO(config_string)
                 logging.config.fileConfig(fh)
                 fh.close()

@@ -41,16 +41,21 @@ import os, sys
 import random
 import numpy as np
 
-from io_funcs.binary_io import BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+    from keras_lib.model import KerasModels
+    from keras_lib import data_utils
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
+    from .model import KerasModels
+    from . import data_utils
 
-from keras_lib.model import kerasModels
-from keras_lib import data_utils
 
-class TrainKerasModels(kerasModels):
+class TrainKerasModels(KerasModels):
 
     def __init__(self, n_in, hidden_layer_size, n_out, hidden_layer_type, output_type='linear', dropout_rate=0.0, loss_function='mse', optimizer='adam', rnn_params=None):
 
-        kerasModels.__init__(self, n_in, hidden_layer_size, n_out, hidden_layer_type, output_type, dropout_rate, loss_function, optimizer)
+        KerasModels.__init__(self, n_in, hidden_layer_size, n_out, hidden_layer_type, output_type, dropout_rate, loss_function, optimizer)
 
         #### TODO: Find a good way to pass below params ####
         self.merge_size   = rnn_params['merge_size']
@@ -58,8 +63,6 @@ class TrainKerasModels(kerasModels):
         self.bucket_range = rnn_params['bucket_range']
 
         self.stateful = rnn_params['stateful']
-
-        pass;
 
     def train_feedforward_model(self, train_x, train_y, valid_x, valid_y, batch_size=256, num_of_epochs=10, shuffle_data=True):
         self.model.fit(train_x, train_y, batch_size=batch_size, epochs=num_of_epochs, shuffle=shuffle_data)
@@ -226,7 +229,7 @@ class TrainKerasModels(kerasModels):
                 self.model.fit(temp_train_x, temp_train_y, batch_size=batch_size, epochs=1, verbose=0)
 
                 file_num += len(train_idx_list)
-                data_utils.drawProgressBar(file_num, train_file_number)
+                # data_utils.drawProgressBar(file_num, train_file_number)
 
             sys.stdout.write("\n")
 
@@ -259,27 +262,37 @@ class TrainKerasModels(kerasModels):
     def predict(self, test_x, out_scaler, gen_test_file_list, sequential_training=False, stateful=False):
         #### compute predictions ####
         io_funcs = BinaryIOCollection()
+        print("keras: generating features on held-out test data...")
 
-        test_file_number = len(gen_test_file_list)
-        print("generating features on held-out test data...")
-        for utt_index in range(test_file_number):
-            gen_test_file_name = gen_test_file_list[utt_index]
+        # each file name
+        for gen_test_file_name in gen_test_file_list:
+
+            # grab the base to lookup in dictionary
             test_id = os.path.splitext(os.path.basename(gen_test_file_name))[0]
+
+            # a dictionary holds each batch
             temp_test_x        = test_x[test_id]
             num_of_rows        = temp_test_x.shape[0]
 
+            # both of these conditions are usuaually false
             if stateful:
                 temp_test_x = data_utils.get_stateful_input(temp_test_x, self.seq_length, self.batch_size)
             elif sequential_training:
                 temp_test_x = np.reshape(temp_test_x, (1, num_of_rows, self.n_in))
 
-            predictions = self.model.predict(temp_test_x)
+            # predict on batch stored in dict test_x
+            try:
+                predictions = self.model.predict(temp_test_x)
+            except ValueError:
+                print("gen_test_filename:", gen_test_file_name)
+                print("temp_test_x:", temp_test_x)
+                raise
             if sequential_training:
                 predictions = np.reshape(predictions, (num_of_rows, self.n_out))
 
             data_utils.denorm_data(predictions, out_scaler)
 
             io_funcs.array_to_binary_file(predictions, gen_test_file_name)
-            data_utils.drawProgressBar(utt_index+1, test_file_number)
+            # data_utils.drawProgressBar(utt_index+1, test_file_number)
 
-        sys.stdout.write("\n")
+        # sys.stdout.write("\n")

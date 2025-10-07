@@ -1,4 +1,5 @@
 #!/bin/bash
+source "$(dirname "$0")/../../.env"
 
 if test "$#" -lt 3; then
     echo "Usage: ./scripts/prepare_labels_from_txt.sh <path_to_text_dir> <path_to_lab_dir> <path_to_global_conf_file>"
@@ -9,6 +10,7 @@ fi
 inp_txt=$1
 lab_dir=$2
 global_config_file=$3
+
 
 if [ ! -f $global_config_file ]; then
     echo "Global config file doesn't exist"

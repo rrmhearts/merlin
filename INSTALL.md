@@ -4,7 +4,7 @@ To install Merlin, `cd` merlin and run the below steps:
 
 - Install some basic tools in Merlin
 ```sh
-bash tools/compile_tools.sh
+bash ./install.sh
 ```
 - Install python dependencies
 ```sh
@@ -20,12 +20,6 @@ pip install -r requirements.txt
 
 - Usually shipped with your python packages 
 - Available in Ubuntu packages
-
-#### theano
-
-- Can be found on pip
-- Need version 0.7 and above
-- http://deeplearning.net/software/theano
 
 #### bandmat
 

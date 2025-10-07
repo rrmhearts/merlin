@@ -1,4 +1,48 @@
 #!/bin/bash
+################################################################################
+#
+#   SCRIPT NAME: prepare_labels_from_txt.sh
+#   VERSION:     1.0
+#
+#   DESCRIPTION:
+#       Automates the generation of untimed, full-context linguistic labels
+#       from a directory of text files or a single multi-sentence text file.
+#       This script orchestrates the entire Festival front-end pipeline to
+#       produce the linguistic features required for a subsequent forced
+#       alignment stage.
+#
+#       The final output is a directory of label files (`label_no_align`) that
+#       contain rich linguistic context but no timing information.
+#
+#   DEPENDENCIES:
+#       - bash
+#       - A configured environment with paths to Festival (FESTDIR) and the
+#         Merlin scripts (frontend).
+#       - Python and required Merlin utility scripts.
+#
+#   WORKFLOW:
+#       1. Reads text input from either a directory of .txt files or a single
+#          formatted .data file.
+#       2. Generates a Festival Scheme script (`.scm`) from the text input.
+#       3. Executes Festival in batch mode to process the scheme script,
+#          creating utterance files (`.utt`).
+#       4. Calls the 'make_labels' script to convert the .utt files into
+#          full-context labels.
+#       5. Normalizes the labels into the final format required by Merlin,
+#          saving them to the 'label_no_align' directory.
+#
+#   CONFIGURATION:
+#       This script requires a single argument: the path to a configuration
+#       file (e.g., config.cfg). All necessary paths (WorkDir, FESTDIR, etc.)
+#       are sourced from this file.
+#
+#   USAGE:
+#       ./prepare_labels_from_txt.sh <path_to_config_file>
+#
+#   EXAMPLE:
+#       ./prepare_labels_from_txt.sh conf/global_settings.cfg
+#
+################################################################################
 
 if test "$#" -ne 1; then
     echo "Usage: ./prepare_labels_from_txt.sh config.cfg"

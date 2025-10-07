@@ -28,10 +28,10 @@ lab_dir=$(dirname $inp_txt)
 ./scripts/prepare_labels_from_txt.sh $inp_txt $lab_dir $global_config_file
 
 echo "synthesizing durations..."
-./scripts/submit.sh ${MerlinDir}/src/run_merlin.py $test_dur_config_file
+python ${MerlinDir}/src/run_merlin.py $test_dur_config_file
 
 echo "synthesizing speech..."
-./scripts/submit.sh ${MerlinDir}/src/run_merlin.py $test_synth_config_file
+python ${MerlinDir}/src/run_merlin.py $test_synth_config_file
 
 echo "deleting intermediate synthesis files..."
 ./scripts/remove_intermediate_files.sh $global_config_file

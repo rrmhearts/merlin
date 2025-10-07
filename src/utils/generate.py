@@ -46,7 +46,10 @@ own vocoder to replace this script.
 import sys, os, subprocess, glob, subprocess
 #from utils import GlobalCfg
 
-from io_funcs.binary_io import  BinaryIOCollection
+try:
+    from io_funcs.binary_io import BinaryIOCollection
+except ModuleNotFoundError:
+    from ..io_funcs.binary_io import BinaryIOCollection
 import numpy as np
 
 import logging
@@ -303,7 +306,7 @@ def wavgen_magphase(gen_dir, file_id_list, cfg, logger):
     import magphase as mp
 
     nfiles = len(file_id_list)
-    for nxf in xrange(nfiles):
+    for nxf in range(nfiles):
         filename_token = file_id_list[nxf]
         logger.info('Creating waveform for %4d of %4d: %s' % (nxf+1, nfiles, filename_token))
 

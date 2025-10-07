@@ -38,7 +38,12 @@
 ################################################################################
 
 import os, sys
-import numpy, theano, random
+import numpy, random
+try:
+    import theano
+except ModuleNotFoundError:
+    pass
+
 from io_funcs.binary_io import BinaryIOCollection
 import logging
 from frontend.label_normalisation import HTSLabelNormalisation
@@ -507,7 +512,7 @@ class ListDataProvider(object):
         ### input word feature matrix ###
         temp_set_dur_word_segments = numpy.zeros(num_words, dtype='int32')
         syl_bound = numpy.cumsum(temp_set_dur_word)
-        for indx in xrange(num_words):
+        for indx in range(num_words):
             temp_set_dur_word_segments[indx] = int(sum(temp_set_dur_syl[0: syl_bound[indx]]))
         temp_set_x = temp_set_word[temp_set_dur_word_segments-1]
         
@@ -547,7 +552,7 @@ class ListDataProvider(object):
         new_y_files_list = self.y_files_list[self.file_index].split(',')
         new_dur_files_list = self.dur_files_list[self.file_index].split(',')
 
-        for new_file_index in xrange(len(new_x_files_list)):
+        for new_file_index in range(len(new_x_files_list)):
             in_features, lab_frame_number = io_fun.load_binary_file_frame(new_x_files_list[new_file_index], self.n_ins)
             out_features, out_frame_number = io_fun.load_binary_file_frame(new_y_files_list[new_file_index], self.n_outs)
             
@@ -613,7 +618,7 @@ class ListDataProvider(object):
         new_y_files_list = self.y_files_list[self.file_index].split(',')
         new_dur_files_list = self.dur_files_list[self.file_index].split(',')
 
-        for new_file_index in xrange(len(new_x_files_list)):
+        for new_file_index in range(len(new_x_files_list)):
             in_features, lab_frame_number = io_fun.load_binary_file_frame(new_x_files_list[new_file_index], self.n_ins)
             out_features, out_frame_number = io_fun.load_binary_file_frame(new_y_files_list[new_file_index], self.n_outs)
             dur_features, dur_frame_number = io_fun.load_binary_file_frame(new_dur_files_list[new_file_index], 1)
@@ -649,7 +654,7 @@ class ListDataProvider(object):
             ### input word feature matrix ###
             temp_set_dur_word_segments = numpy.zeros(num_words, dtype='int32')
             syl_bound = numpy.cumsum(temp_set_dur_word)
-            for indx in xrange(num_words):
+            for indx in range(num_words):
                 temp_set_dur_word_segments[indx] = int(sum(temp_set_dur_syl[0: syl_bound[indx]]))
             temp_set_x = temp_set_word[temp_set_dur_word_segments-1]
         
