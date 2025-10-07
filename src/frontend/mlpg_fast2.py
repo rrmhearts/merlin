@@ -211,7 +211,7 @@ def solveh_band(prec, b):
         return spsolve(sparse_prec, b)
 
 
-class MLParameterGenerationFast(object):
+class MLParameterGeneration(object):
     """
     Maximum Likelihood Parameter Generation using efficient sparse band matrices.
     
