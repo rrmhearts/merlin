@@ -37,11 +37,6 @@
 #  THIS SOFTWARE.
 ################################################################################
 
-## Added FAST_MLPG as a variable here, in case someone wants to use the slow version, but perhaps we
-## should always use the bandmat version?
-FAST_MLPG = True
-#io_funcs.
-
 try:
     from io_funcs.binary_io import BinaryIOCollection
 except ModuleNotFoundError:
@@ -49,11 +44,7 @@ except ModuleNotFoundError:
 import os, re, numpy
 import logging
 
-if FAST_MLPG:
-    from .mlpg_fast import MLParameterGenerationFast as MLParameterGeneration
-#    pass
-else:
-    from .mlpg import MLParameterGeneration
+from .mlpg_fast import MLParameterGenerationFast as MLParameterGeneration
 
 class   ParameterGeneration(object):
 
