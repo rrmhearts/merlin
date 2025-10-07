@@ -88,8 +88,6 @@ else
     # Install all python packages!
     ./install_pypkgs.sh
 
-    # No Theano, removed patch
-
     # Install tools
     ./tools/compile_tools.sh 
     ./tools/compile_other_speech_tools.sh 

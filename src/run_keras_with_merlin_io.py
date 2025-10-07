@@ -101,11 +101,15 @@ class KerasClass(object):
         self.dropout_rate  = cfg.dropout_rate
         self.num_of_epochs = cfg.num_of_epochs
 
-        self.json_model_file = cfg.json_model_file
-        self.h5_model_file   = cfg.h5_model_file
+        self.keras_model_file = cfg.keras_model_file
 
         ### define train, valid, test ###
 
+        train_file_number = cfg.train_file_number
+        valid_file_number = cfg.valid_file_number
+        test_file_number  = cfg.test_file_number
+
+        file_id_scp  = cfg.file_id_scp
         test_id_scp  = cfg.test_id_scp
 
         #### main processess ####
@@ -217,11 +221,11 @@ class KerasClass(object):
                                                                                         shuffle_data=self.shuffle_data, training_algo=self.training_algo)
 
         #### store the model ####
-        self.keras_models.save_model(self.json_model_file, self.h5_model_file)
+        self.keras_models.save_model(self.keras_model_file)
 
     def test_keras_model(self):
         #### load the model ####
-        self.keras_models.load_model(self.json_model_file, self.h5_model_file)
+        self.keras_models.load_model(self.keras_model_file)
 
         #### load the data ####
         print('preparing test_x from input feature files...')
@@ -234,9 +238,10 @@ class KerasClass(object):
         self.keras_models.predict(test_x, self.out_scaler, self.gen_test_file_list, self.sequential_training)
 
         #### after using the model, save as Keras 3 format! ####
-        keras_model_file = os.path.splitext(self.h5_model_file)[0] + '.keras'
-        if not os.path.exists(keras_model_file):
-            self.keras_models.model.save(keras_model_file)
+        # keras_model_file = os.path.splitext(self.h5_model_file)[0] + '.keras'
+        # if not os.path.exists(keras_model_file):
+        #     self.keras_models.model.save(keras_model_file)
+            # tf.keras.models.save_model()
 
     def main_function(self):
         ### Implement each module ###

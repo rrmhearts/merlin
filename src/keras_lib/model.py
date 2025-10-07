@@ -39,10 +39,9 @@
 
 import os
 import numpy as np
-
-from keras.models import Sequential
-from keras.models import model_from_json
-from keras.layers import Dense, SimpleRNN, GRU, LSTM
+import keras
+from keras.models import Sequential # , model_from_json
+from keras.layers import Dense, SimpleRNN, GRU, LSTM, Input
 from keras.layers import Dropout
 
 class KerasModels(object):
@@ -83,26 +82,21 @@ class KerasModels(object):
         seed = 12345
         np.random.seed(seed)
 
+        self.model.add(Input(shape=(self.n_in,) ))
         # add hidden layers
         for i in range(self.n_layers):
-            if i == 0:
-                input_size = self.n_in
-            else:
-                input_size = self.hidden_layer_size[i - 1]
-
             self.model.add(Dense(
                     units=self.hidden_layer_size[i],
                     activation=self.hidden_layer_type[i],
-                    kernel_initializer="normal",
-                    input_dim=input_size))
+                    kernel_initializer="normal"))
             self.model.add(Dropout(self.dropout_rate))
 
         # add output layer
         self.model.add(Dense(
             units=self.n_out,
             activation=self.output_type.lower(),
-            kernel_initializer="normal",
-            input_dim=self.hidden_layer_size[-1]))
+            kernel_initializer="normal"))
+            # input_dim=self.hidden_layer_size[-1]))
 
         # Compile the model
         self.compile_model()
@@ -149,7 +143,7 @@ class KerasModels(object):
         # add output layer
         self.model.add(Dense(
             units=self.n_out,
-            input_dim=self.hidden_layer_size[-1],
+            # input_dim=self.hidden_layer_size[-1],
             kernel_initializer='normal',
             activation=self.output_type.lower()))
 
@@ -194,7 +188,7 @@ class KerasModels(object):
         # add output layer
         self.model.add(Dense(
             units=self.n_out,
-            input_dim=self.hidden_layer_size[-1],
+            # input_dim=self.hidden_layer_size[-1],
             kernel_initializer='normal',
             activation=self.output_type.lower()))
 
@@ -204,42 +198,30 @@ class KerasModels(object):
     def compile_model(self):
         self.model.compile(loss=self.loss_function, optimizer=self.optimizer, metrics=['accuracy'])
 
-    def save_model(self, json_model_file, h5_model_file):
-        # serialize model to JSON
-        model_json = self.model.to_json()
-        with open(json_model_file, "w") as json_file:
-            json_file.write(model_json)
-        # serialize weights to HDF5
-        self.model.save_weights(h5_model_file)
-
-        ## Save Keras 3 version too!
-        keras_model_file = os.path.splitext(h5_model_file)[0] + '.keras'
-        if not os.path.exists(keras_model_file):
-            self.model.save(keras_model_file)
+    def save_model(self, keras_model_file):
+        # Must save using Keras 3 for load to work properly
+        self.model.save(keras_model_file)
         print("Saved model to disk")
 
-    def load_model(self, json_model_file, h5_model_file):
+    def load_model(self, keras_model_file):
+        # Requires Keras 3 # print(f"Loading {keras_model_file}...")
+        assert ".keras" in keras_model_file, "Wrong kind of model file. Requires .keras extension"
         #### load the model ####
-        json_file = open(json_model_file, 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
-        loaded_model = model_from_json(loaded_model_json)
-        loaded_model.load_weights(h5_model_file)
+        try:
+            self.model = keras.models.load_model(keras_model_file)
+
+        except OSError:
+            print("OSError: Unable to open file (file signature not found)")
+            if '.keras' in keras_model_file:
+                print("## You must install Keras 3 to work with this file. ##")
+            exit(1) # raise Exception(e)
+        except ValueError:
+            # try:
+            print("This model is Keras 2, load Keras 2 model")
+            print(keras_model_file)
+            exit(1)
+
         print("Loaded model from disk")
-        ## ValueError: Weights for model sequential have not yet been created. 
-        ##             Weights are created when the Model is first called on inputs or 
-        ##             `build()` is called with an `input_shape`.
-        # Save in Keras 3 format!
-        # keras_model_file = os.path.splitext(h5_model_file)[0] + '.keras'
-        # if not os.path.exists(keras_model_file):
-        #     self.model.save(keras_model_file)
 
         #### compile the model ####
-        self.model = loaded_model
         self.compile_model()
-
-        keras_model_export_file = json_model_file.rpartition('.')[0] + '_export'
-        if not os.path.exists(keras_model_export_file):
-            self.model.save(keras_model_export_file, save_format='tf')
-
-            
