@@ -139,11 +139,6 @@ if __name__ == "__main__":
     # This may be a scp file or not
     file_id = sys.argv[4]
 
-    print("in lab:", in_lab_dir)
-    print("out lab:", out_lab_dir)
-    print("label_style:", label_style)
-    print("file id:", file_id)
-
     write_time_stamps = True
     if len(sys.argv)==6:
         if int(sys.argv[5])==0:
