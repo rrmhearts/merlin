@@ -458,9 +458,9 @@ def main_function(cfg):
 
     ### call kerasclass and use an instance ###
     try:
-        from run_keras_with_merlin_io_cond_test import KerasClass
+        from run_keras_with_merlin_io import KerasClass
     except ModuleNotFoundError:
-        from .run_keras_with_merlin_io_cond_test import KerasClass
+        from .run_keras_with_merlin_io import KerasClass
     keras_instance = KerasClass(cfg)
     
     ### DNN model training
