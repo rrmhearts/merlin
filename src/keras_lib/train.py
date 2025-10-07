@@ -274,7 +274,7 @@ class TrainKerasModels(KerasModels):
             temp_test_x        = test_x[test_id]
             num_of_rows        = temp_test_x.shape[0]
 
-            # both of these conditions are usuaually false
+            # both of these conditions are usually false
             if stateful:
                 temp_test_x = data_utils.get_stateful_input(temp_test_x, self.seq_length, self.batch_size)
             elif sequential_training:

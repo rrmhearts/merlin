@@ -39,8 +39,8 @@ fi
 
 ### Step 2: synthesize speech   ###
 echo "Step 2: synthesizing speech..."
-./scripts/submit.sh ${MerlinDir}/src/run_merlin.py conf/test_dur_synth_${Voice}.conf
-./scripts/submit.sh ${MerlinDir}/src/run_merlin.py conf/test_synth_${Voice}.conf
+python ${MerlinDir}/src/run_merlin.py conf/test_dur_synth_${Voice}.conf
+python ${MerlinDir}/src/run_merlin.py conf/test_synth_${Voice}.conf
 
 echo "deleting intermediate synthesis files..."
 ./scripts/remove_intermediate_files.sh $global_config_file

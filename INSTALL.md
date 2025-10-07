@@ -32,7 +32,7 @@ pip install -r requirements.txt
 ### Computational efficiency
     
 - Computationnal efficiency is obviously greatly improved using GPU.
-- It is also improved using the latest versions of theano and numpy.
+- It is also improved using the latest versions of keras and numpy.
 
 ## Some Linux Instructions
 

@@ -89,7 +89,8 @@ class configuration(object):
         # load the config file
         try:
             cfgparser = configparser.ConfigParser()
-            cfgparser.readfp(open(configFile))
+            ## DeprecationWarning # cfgparser.readfp(open(configFile))
+            cfgparser.read_file(open(configFile))
             logger.debug('successfully read and parsed user configuration file %s' % configFile)
         except:
             logger.fatal('error reading user configuration file %s' % configFile)
@@ -266,8 +267,7 @@ class configuration(object):
         logger.info('model file: %s' % (self.nnets_file_name))
 
         # model files
-        self.json_model_file = os.path.join(self.model_dir, self.nnets_file_name+'.json')
-        self.h5_model_file   = os.path.join(self.model_dir, self.nnets_file_name+'.h5')
+        self.keras_model_file = os.path.join(self.model_dir, self.nnets_file_name+'.keras')
 
         # predicted features directory
         self.pred_feat_dir = os.path.join(self.gen_dir, self.nnets_file_name)
