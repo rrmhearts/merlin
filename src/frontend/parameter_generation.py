@@ -37,23 +37,18 @@
 #  THIS SOFTWARE.
 ################################################################################
 
-## Added FAST_MLPG as a variable here, in case someone wants to use the slow version, but perhaps we
-## should always use the bandmat version?
-FAST_MLPG = True
-#io_funcs.
-
 try:
     from io_funcs.binary_io import BinaryIOCollection
 except ModuleNotFoundError:
     from ..io_funcs.binary_io import BinaryIOCollection
-import os, re, numpy
+import os, re, sys
+import numpy
 import logging
 
-if FAST_MLPG:
-    from .mlpg_fast import MLParameterGenerationFast as MLParameterGeneration
-#    pass
-else:
-    from .mlpg import MLParameterGeneration
+try:
+    from .mlpg_fast2 import MLParameterGeneration
+except (ModuleNotFoundError, ImportError):
+    from mlpg_fast import MLParameterGeneration
 
 class   ParameterGeneration(object):
 
@@ -153,12 +148,10 @@ class   ParameterGeneration(object):
                 logger.debug(' feature: %s' % feature_name)
 
                 current_features = features[:, stream_start_index[feature_name]:stream_start_index[feature_name]+out_dimension_dict[feature_name]]
-                if FAST_MLPG:
-                    ### fast version wants variance per frame, not single global one:
-                    var = self.var[feature_name]
-                    var = numpy.transpose(numpy.tile(var,frame_number))
-                else:
-                    var = self.var[feature_name]
+                ### fast version wants variance per frame, not single global one:
+                var = self.var[feature_name]
+                var = numpy.transpose(numpy.tile(var,frame_number))
+
 
 #                print  var.shape[1]
                 if do_MLPG == False:

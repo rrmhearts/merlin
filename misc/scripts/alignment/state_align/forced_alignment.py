@@ -53,9 +53,10 @@
 import os, sys
 import time
 import glob
+import argparse
 
 from sys import argv, stderr
-from subprocess import check_call, Popen, CalledProcessError, PIPE
+from subprocess import check_call, PIPE
 from mean_variance_norm import MeanVarianceNorm
 from dotenv import load_dotenv, find_dotenv
 
@@ -80,9 +81,19 @@ HVite  = os.path.join(HTKDIR, 'HVite' )
 
 class ForcedAlignment(object):
 
-    def __init__(self):
+    def __init__(self, HTKPath=HTKDIR):
+        if not os.path.exists(HTKPath):
+            try:
+                HTKPath = HTKDIR
+            except:
+                raise FileNotFoundError("HTK has not been found on the paths!")
         self.proto = None
         self.phoneme_mlf = None
+        self.HCompV = os.path.join(HTKPath, 'HCompV')
+        self.HCopy  = os.path.join(HTKPath, 'HCopy' )
+        self.HERest = os.path.join(HTKPath, 'HERest')
+        self.HHEd   = os.path.join(HTKPath, 'HHEd'  )
+        self.HVite  = os.path.join(HTKPath, 'HVite' )
 
     def _make_proto(self):
         ## make proto
@@ -110,7 +121,7 @@ class ForcedAlignment(object):
         fid.close()
 
         ## make vFloors
-        check_call([HCompV, '-f', F, '-C', self.cfg,
+        check_call([self.HCompV, '-f', F, '-C', self.cfg,
                               '-S', self.train_scp,
                               '-M', self.cur_dir, self.proto])
         ## make local macro
@@ -242,7 +253,7 @@ CEPLIFTER = 22
 NUMCHANS = 20
 NUMCEPS = 12
 """)
-        check_call([HCopy, '-C', self.cfg, '-S', self.copy_scp])
+        check_call([self.HCopy, '-C', self.cfg, '-S', self.copy_scp])
         # write a CFG for what we just built
         open(self.cfg, 'w').write("""TARGETRATE = 50000.0
 TARGETKIND = USER
@@ -331,7 +342,7 @@ NUMCEPS = 12
                 next_dir = os.path.join(self.model_dir, 'hmm_mix_' + str(mix) + '_iter_' + str(i+1))
                 if not os.path.exists(next_dir):
                     os.makedirs(next_dir)
-                check_call([HERest, '-C', self.cfg, '-S', self.train_scp,
+                check_call([self.HERest, '-C', self.cfg, '-S', self.train_scp,
                             '-I', self.phoneme_mlf,
                             '-M', next_dir,
                             '-H', os.path.join(self.cur_dir, MACROS),
@@ -351,7 +362,7 @@ NUMCEPS = 12
                 if not os.path.exists(next_dir):
                     os.makedirs(next_dir)
 
-                check_call( [HHEd, '-A',
+                check_call( [self.HHEd, '-A',
                              '-H', os.path.join(self.cur_dir, MACROS),
                              '-H', os.path.join(self.cur_dir, HMMDEFS),
                              '-M', next_dir] + [hed_file] + [self.phonemes])
@@ -369,7 +380,7 @@ NUMCEPS = 12
         print(time.strftime("%c"))
         self.align_mlf = os.path.join(work_dir, 'mono_align.mlf')
 
-        check_call([HVite, '-a', '-f', '-m', '-y', 'lab', '-o', 'SM',
+        check_call([self.HVite, '-a', '-f', '-m', '-y', 'lab', '-o', 'SM',
                     '-i', self.align_mlf, '-L', self.mono_lab_dir,
                     '-C', self.cfg, '-S', self.train_scp,
                     '-H', os.path.join(self.cur_dir, MACROS),
@@ -414,6 +425,17 @@ NUMCEPS = 12
 
 
 if __name__ == '__main__':
+    # parser = argparse.ArgumentParser(description="Forced alignment of lab files")
+    # parser.add_argument('lab_parent', type=str, help='Pathname to lab directory', default="")
+    # parser.add_argument('wav_dir', type=str, help='Pathname to wav directory', default="")
+
+    # args = parser.parse_args()
+
+    # # Avoid sed scripts
+    # lab_parent= args.lab_parent
+    # wav_dir= args.wav_dir
+
+    # if not os.path.exists(lab_parent) or not os.path.exists(wav_dir):
     # no space after var to prevent sed editor
     work_dir= os.getcwd()
     try:
@@ -422,6 +444,7 @@ if __name__ == '__main__':
     except:
         wav_dir= f"{work_dir}/database/wav"
         lab_parent= f"{work_dir}/database/lab"
+
 
     print("forced alignment paths: {}, {}".format(wav_dir, lab_parent))
 

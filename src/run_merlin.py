@@ -70,6 +70,7 @@ if __package__ is None or __package__ == '':
     from utils.file_paths import FilePaths
     from utils.utils import prepare_file_path_list
     import configuration
+    from run_keras_with_merlin_io import KerasClass
 
 else:
     from .frontend.label_normalisation import HTSLabelNormalisation
@@ -95,12 +96,15 @@ else:
     from .utils.file_paths import FilePaths
     from .utils.utils import prepare_file_path_list
     from . import configuration
+    from .run_keras_with_merlin_io import KerasClass
 
 LOGGING_ACTIVE = False
 import logging # as logging
 import logging.config
 
 
+## Similar speed to Tensorflow # jax, torch, tensorflow, openvino
+os.environ['KERAS_BACKEND'] = 'torch'
 
 # def load_covariance(var_file_dict, out_dimension_dict):
 #     var = {}
@@ -164,8 +168,8 @@ def main_function(cfg):
             # using the standard config mechanism of the logging module
             # but for now we need to do it manually
             plotlogger.set_plot_path(cfg.plot_dir)
-        except:
-            pass
+        except AttributeError:
+            logger.debug("AttributeError: 'Logger' object has no attribute 'set_plot_path'")
     else:
         logger.disabled = True
         logger.propagate = False
@@ -191,9 +195,14 @@ def main_function(cfg):
         cfg.valid:   {cfg.valid_file_number}
         cfg.test:    {cfg.test_file_number}
     """)
-    # Total_file_number == 1, fails under 2.7 as well
-    assert cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number == total_file_number, 'check train, valid, test file number'
-
+    # Issue: Total_file_number == 1, fails under 2.7 as well
+    # Make sure database/wav contains the proper wav files, ensure copied over correctly
+    # Check experiments/*/duration_model/data/file_id_list
+    assert cfg.train_file_number+cfg.valid_file_number+cfg.test_file_number == total_file_number, 'check train, valid, test file number; check database/wav for extra files'
+        # Total files: 53
+        # cfg.train:   49
+        # cfg.valid:   5
+        # cfg.test:    5
     data_dir = cfg.data_dir
     print(data_dir)
     inter_data_dir = cfg.inter_data_dir
@@ -527,6 +536,7 @@ def main_function(cfg):
 
         gen_file_list = prepare_file_path_list(gen_file_id_list, gen_dir, cfg.cmp_ext)
 
+        # test model
         keras_instance.test_keras_model()
 
         logger.debug('denormalising generated output using method %s' % cfg.output_feature_normalisation)
