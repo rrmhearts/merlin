@@ -1,4 +1,4 @@
-## Install all Python dependencies along with Bandmat, which is not available through pip
+## Install all Python dependencies
 
 while [[ $# -gt 0 ]]; do
   case "$1" in

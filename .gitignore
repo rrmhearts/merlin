@@ -80,7 +80,6 @@ deps/
 .*venv*/
 *venv*/
 venv3.10/
-bandmat/
 
 # Pycharm IDE
 .idea/

@@ -50,7 +50,6 @@ class MLParameterGeneration(object):
     parameter trajectory from statistical model outputs (mean and variance).
     It replaces the original `bandmat` library with `scipy.sparse` to construct
     and solve the necessary linear system, ensuring both correctness and efficiency.
-    (Source: mlpg_fast_bandmat.txt, mlpg_fast2.txt)
     """
 
     def __init__(self, delta_win=[-0.5, 0.0, 0.5], acc_win=[1.0, -2.0, 1.0]):
@@ -167,7 +166,6 @@ class MLParameterGeneration(object):
             
             # Set high variance at boundaries for delta/acc to de-constrain them.
             # This is a crucial step for avoiding artifacts at the start and end.
-            # (Source: mlpg_fast_bandmat.txt, mlpg_fast2.txt)
             var_frames[0, 1:] = 1.0e11
             var_frames[-1, 1:] = 1.0e11
             

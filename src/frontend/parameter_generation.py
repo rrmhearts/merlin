@@ -45,9 +45,10 @@ import os, re, sys
 import numpy
 import logging
 
-## Neither is as good as bandmat.
-# from .mlpg_fast2 import MLParameterGeneration # (sounds worse)
-from .mlpg_fast2 import MLParameterGeneration
+try:
+    from .mlpg_fast2 import MLParameterGeneration
+except (ModuleNotFoundError, ImportError):
+    from mlpg_fast import MLParameterGeneration
 
 class   ParameterGeneration(object):
 
