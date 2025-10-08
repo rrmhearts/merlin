@@ -47,7 +47,7 @@ import logging
 
 ## Neither is as good as bandmat.
 # from .mlpg_fast2 import MLParameterGeneration # (sounds worse)
-from .mlpg_fast import MLParameterGeneration
+from .mlpg_fast2 import MLParameterGeneration
 
 class   ParameterGeneration(object):
 
