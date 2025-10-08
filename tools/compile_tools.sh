@@ -15,27 +15,17 @@ install_world=true
 install_reaper=true
 install_magphase=true
 remove_tarballs=false
-internet_connection=$(check_internet)
-
-if [ $internet_connection = "online" ]; then
-  echo "Internet connection is available." $internet_connection
-else
-  echo "Internet connection is not available." $internet_connection
-fi
 
 # 1. Get and compile SPTK
 if [ "$install_sptk" = true ]; then
     echo "downloading SPTK-3.9..."
     sptk_url=http://downloads.sourceforge.net/sp-tk/SPTK-3.9.tar.gz
-    if [ $internet_connection = "online" ]; then
-        if hash curl 2>/dev/null; then
-            curl -L -O $sptk_url
-        elif hash wget 2>/dev/null; then
-            wget $sptk_url
-        fi
-    else
-        cp tar.gz/SPTK-3.9.tar.gz
+    if hash curl 2>/dev/null; then
+        curl -L -O $sptk_url
+    elif hash wget 2>/dev/null; then
+        wget $sptk_url
     fi
+
     
     if [ -f "SPTK-3.9.tar.gz" ]; then
         echo "SPTK already downloaded."
@@ -62,16 +52,12 @@ if [ "$install_sptk" = true ]; then
 
     # Get and compile Postfilter
     if [ "$install_postfilter" = true ]; then
-        if [ $internet_connection = "online" ]; then
-            echo "downloading postfilter..."
-            postfilter_url=http://104.131.174.95/downloads/tools/postfilter.tar.gz
-            if hash curl 2>/dev/null; then
-                curl -L -O $postfilter_url
-            elif hash wget 2>/dev/null; then
-                wget $postfilter_url
-            fi
-        else
-            cp tar.gz/postfilter.tar.gz .
+        echo "downloading postfilter..."
+        postfilter_url=http://104.131.174.95/downloads/tools/postfilter.tar.gz
+        if hash curl 2>/dev/null; then
+            curl -L -O $postfilter_url
+        elif hash wget 2>/dev/null; then
+            wget $postfilter_url
         fi
         
         if [ -f "postfilter.tar.gz" ]; then
@@ -85,11 +71,7 @@ if [ "$install_sptk" = true ]; then
         echo "compiling postfilter..."
         (
             # need automake 1.16.4 instead of 1.16.5
-            if [ $internet_connection = "online" ]; then
-                wget https://ftp.gnu.org/gnu/automake/automake-1.16.4.tar.gz
-            else
-                cp tar.gz/automake-1.16.4.tar.gz ./
-            fi
+            wget https://ftp.gnu.org/gnu/automake/automake-1.16.4.tar.gz
             tar xvf automake-1.16.4.tar.gz
             cd automake-1.16.4/
             ./configure
@@ -119,11 +101,9 @@ fi
 
 # 3. Getting REAPER
 if [ "$install_reaper" = true ]; then
-    if [ "$internet_connection" = "online" ]; then
-        # if we're removing the files, download it
-        echo "downloading REAPER..."
-        git clone https://github.com/google/REAPER.git
-    fi
+    # if we're removing the files, download it
+    echo "downloading REAPER..."
+    git clone https://github.com/google/REAPER.git
     echo "compiling REAPER..."
     (
         cd REAPER
@@ -141,11 +121,9 @@ REAPER_BIN_DIR=bin/REAPER
 
 # 4. Getting MagPhase vocoder:
 if [ "$install_magphase" = true ]; then
-    if [ "$internet_connection" = true ]; then
-        echo "downloading MagPhase vocoder..."
-        rm -rf magphase
-        git clone https://github.com/CSTR-Edinburgh/magphase.git
-    fi
+    echo "downloading MagPhase vocoder..."
+    rm -rf magphase
+    git clone https://github.com/CSTR-Edinburgh/magphase.git
 
     echo "configuring MagPhase..."
     (

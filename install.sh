@@ -46,16 +46,6 @@ FILE=~/.bashrc
 grep -qF -- "$LINE" "$FILE" || echo "$LINE" >> "$FILE"
 
 block='
-# Function to check internet connection
-check_internet() {
-  ping -q -c 1 8.8.8.8 > /dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    echo "online"
-  else
-    echo "offline"
-  fi
-}
-
 export ESTDIR=$HOME/merlin/./tools/speech_tools
 export FESTVOXDIR=$HOME/merlin/./tools/festvox
 export FLITEDIR=$HOME/merlin/./tools/flite

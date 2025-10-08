@@ -15,13 +15,6 @@ install_speech_tools=true
 install_festival=true
 install_festvox=true
 install_flite=true
-internet_connection=$(check_internet)
-
-if [ $internet_connection = "online" ]; then
-  echo "Internet connection is available." $internet_connection
-else
-  echo "Internet connection is not available." $internet_connection
-fi
 
 export USER_CXXFLAGS="-fPIE"
 export USER_CFLAGS="-fPIE"
@@ -42,15 +35,11 @@ fi
 # 1. Get and compile speech tools
 if [ "$install_speech_tools" = true ]; then
 
-    if [ $internet_connection = "online" ]; then
-        echo "downloading speech tools..."
-        # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
-        speech_tools_git=https://github.com/festvox/speech_tools
-        git clone $speech_tools_git 
-    else
-        cp tar.gz/speech_tools.tar.gz .
-        tar xzf speech_tools.tar.gz
-    fi
+    echo "downloading speech tools..."
+    # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
+    speech_tools_git=https://github.com/festvox/speech_tools
+    git clone $speech_tools_git 
+
     # Patching speech tools may prevent readline errors, but it may also cause featival to seg fault. Suggest not using.
     # git clone $speech_tools_git && sed -i 's/#define USE_TERMCAP/#ifdef SYSTEM_IS_WIN32\n#define USE_TERMCAP\n#endif/g' ./speech_tools/siod/editline.h
     
@@ -100,18 +89,14 @@ export PATH=$FESTDIR/bin:$PATH
 
 # 3. Get and compile festvox
 if [ "$install_festvox" = true ]; then
-    if [ $internet_connection = "online" ]; then
-        echo "downloading festvox..."
-        # festvox_url=http://festvox.org/festvox-2.7/festvox-2.7.0-release.tar.gz
-        festvox_git=https://github.com/festvox/festvox
-        git clone $festvox_git
+    echo "downloading festvox..."
+    # festvox_url=http://festvox.org/festvox-2.7/festvox-2.7.0-release.tar.gz
+    festvox_git=https://github.com/festvox/festvox
+    git clone $festvox_git
 
-        tar -czf festvox.tar.gz festvox/
-        mv festvox.tar.gz tar.gz/ 2>/dev/null
-    else
-        cp tar.gz/festvox.tar.gz . 2>/dev/null
-        tar xzf festvox.tar.gz 2>/dev/null
-    fi
+    tar -czf festvox.tar.gz festvox/
+    mv festvox.tar.gz tar.gz/ 2>/dev/null
+
 
     echo "compiling festvox..."
     (
@@ -144,17 +129,13 @@ fi
 
 # 5. Get and compile flite
 if [ "$install_flite" = true ]; then
-    if [ $internet_connection = "online" ]; then
-        echo "downloading flite..."
-        # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
-        flite_git=http://github.com/festvox/flite
-        git clone $flite_git
-        tar -czf flite.tar.gz flite/
-        mv flite.tar.gz tar.gz/ 2>/dev/null
-    else
-        cp tar.gz/flite.tar.gz . 2>/dev/null
-        tar xzf flite.tar.gz 2>/dev/null
-    fi
+    echo "downloading flite..."
+    # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
+    flite_git=http://github.com/festvox/flite
+    git clone $flite_git
+    tar -czf flite.tar.gz flite/
+    mv flite.tar.gz tar.gz/ 2>/dev/null
+
 
     echo "compiling speech tools..."
     (
