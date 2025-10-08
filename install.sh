@@ -56,12 +56,12 @@ check_internet() {
   fi
 }
 
-export ESTDIR=/home/ryan/merlin/./tools/speech_tools
-export FESTVOXDIR=/home/ryan/merlin/./tools/festvox
-export FLITEDIR=/home/ryan/merlin/./tools/flite
-export SPTKDIR=/home/ryan/merlin/./tools/SPTK
-export PATH=/home/ryan/merlin/./tools/speech_tools/bin:${PATH}
-export PATH=/home/ryan/merlin/./tools/festival/bin:${PATH}
+export ESTDIR=$HOME/merlin/./tools/speech_tools
+export FESTVOXDIR=$HOME/merlin/./tools/festvox
+export FLITEDIR=$HOME/merlin/./tools/flite
+export SPTKDIR=$HOME/merlin/./tools/SPTK
+export PATH=$HOME/merlin/./tools/speech_tools/bin:${PATH}
+export PATH=$HOME/merlin/./tools/festival/bin:${PATH}
 '
 if grep -qF "$block" ~/.bashrc; then
   echo "exports already exists in ~/.bashrc"
