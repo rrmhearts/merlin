@@ -56,7 +56,7 @@ import glob
 import argparse
 
 from sys import argv, stderr
-from subprocess import check_call, Popen, CalledProcessError, PIPE
+from subprocess import check_call, PIPE
 from mean_variance_norm import MeanVarianceNorm
 from dotenv import load_dotenv, find_dotenv
 

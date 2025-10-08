@@ -21,11 +21,6 @@ pip install -r requirements.txt
 - Usually shipped with your python packages 
 - Available in Ubuntu packages
 
-#### bandmat
-
-- Can be found on pip
-- https://pypi.python.org/pypi/bandmat
-
 #### For running on NVIDIA GPU, you will need also CUDA
 
 - https://developer.nvidia.com/cuda-zone
@@ -55,7 +50,6 @@ sudo yum install python-numpy python-scipy python-dev python-pip python-nose g++
 ```sh
 sudo env "PATH=$PATH" pip install keras
 sudo env "PATH=$PATH" pip install matplotlib
-sudo env "PATH=$PATH" pip install bandmat
 sudo env "PATH=$PATH" pip install lxml
 ```
 

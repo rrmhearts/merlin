@@ -26,7 +26,6 @@ Merlin uses the following dependencies:
 
 - numpy, scipy
 - matplotlib
-- bandmat
 - keras
 - tensorflow (optional, required if you use tensorflow models)
 - sklearn, keras, h5py (optional, required if you use keras models)
