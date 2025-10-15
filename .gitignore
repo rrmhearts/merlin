@@ -37,6 +37,7 @@ egs/slt_arctic/
 
 
 # For festival build
+tools/multisyn_build/
 
 # Tools
 SPTK*

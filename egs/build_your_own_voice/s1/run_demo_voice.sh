@@ -18,7 +18,7 @@ if [ "$setup_data" = true ]; then
     wget http://104.131.174.95/downloads/build_your_own_voice/slt_demo/txt.data
 
     # unzip files
-    unzip -q wav.zip
+    unzip -qo wav.zip
 
     mkdir -p database
 

@@ -22,11 +22,6 @@ export CPPFLAGS="-fPIE"
 export CXXFLAGS="-fPIE"
 export CFLAGS="-fPIE"
 
-# no longer needed
-REinstall_speech_tools=true
-
-# REMEMBER, speech_tools will need re-built on certain changes
-# to Festival. Often this is required! See documentation?
 if [ "$remove_festival_speech_tools" = true ]; then
     echo "Removing speech tools and festival"
     rm -rf speech_tools
@@ -37,19 +32,16 @@ if [ "$install_speech_tools" = true ]; then
 
     echo "downloading speech tools..."
     # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
-    speech_tools_git=https://github.com/festvox/speech_tools
+    speech_tools_git=https://github.com/rrmhearts/speech_tools
     git clone $speech_tools_git 
 
-    # Patching speech tools may prevent readline errors, but it may also cause featival to seg fault. Suggest not using.
-    # git clone $speech_tools_git && sed -i 's/#define USE_TERMCAP/#ifdef SYSTEM_IS_WIN32\n#define USE_TERMCAP\n#endif/g' ./speech_tools/siod/editline.h
-    
-    # IF these lines are still commented out, uncomment them to build speech_tools.
-    sed -i 's/\/\/int getch(void);/int getch(void);/g' ./speech_tools/include/EST_Token.h
-    sed -i 's/\/\/EST_TokenStream \&getch(char \&C);/EST_TokenStream \&getch(char \&C);/g' ./speech_tools/include/EST_Token.h
-
+    # sed -i 's/\/\/int getch(void);/int getch(void);/g' ./speech_tools/include/EST_Token.h
+    # sed -i 's/\/\/EST_TokenStream \&getch(char \&C);/EST_TokenStream \&getch(char \&C);/g' ./speech_tools/include/EST_Token.h
+    # sed -i 's/char \*editline_history_file = ".editline_history"/extern char \*editline_history_file = ".editline_history"/g' ./speech_tools/siod/siodeditline.c
     echo "compiling speech tools..."
     (
         cd speech_tools;
+        find . -type f -exec dos2unix {} \; # make sure it is unix style
         make clean # very important when switching versions of gcc
         ./configure;
         make;
@@ -64,17 +56,15 @@ export PATH=$ESTDIR/bin:$PATH
 
 # 2. Get and compile festival, download dicts and some voices
 if [ "$install_festival" = true ]; then
-    # Festival is now included in Merlin. No longer need to download!
-    # echo "downloading festival..."
-    # festival_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/festival-2.4-release.tar.gz
-    # festival_git=https://github.com/festvox/festival.git
-    # git clone $festival_git
-    # tar -xzf festival.tar.gz # using the code extraction caused errors.
+    echo "downloading festival..."
+    festival_git=https://github.com/rrmhearts/festival.git
+    git clone $festival_git
+    tar -xzf festival.tar.gz # using the code extraction caused errors.
     echo "compiling festival..."
     (
         cd festival;
-        # patch is applied in downloaded version
-        # patch -p1 < ../ff.cc.patch # work with non-git
+        find . -type f -exec dos2unix {} \; # make sure it is unix style
+
         make clean # very important when switching versions of gcc
         ./configure;
         make;
@@ -143,27 +133,6 @@ if [ "$install_flite" = true ]; then
         ./configure;
         make;
     )
-fi
-
-# 6. Rebuild speech_tools without rebuilding festival
-# This is for VoiceServer to work. This will break festival if it is rebuilt with this as dependency.
-if [ "$REinstall_speech_tools" = true ]; then
-    echo "reinstall speech tools..."
-    # speech_tools_url=http://www.cstr.ed.ac.uk/downloads/festival/2.4/speech_tools-2.4-release.tar.gz
-    # speech_tools_git=https://github.com/festvox/speech_tools
-    # git clone $speech_tools_git 
-    # Patching speech tools may prevent readline errors, but it may also cause featival to seg fault. Suggest not using.
-    sed -i 's/#define USE_TERMCAP/#ifdef SYSTEM_IS_WIN32\n#define USE_TERMCAP\n#endif/g' ./speech_tools/siod/editline.h
-    
-    echo "compiling speech tools..."
-    (
-        cd speech_tools;
-        make clean
-        ./configure;
-        make;
-        make install
-    )
-
 fi
 
 LINE="export ESTDIR=$tools_dir/speech_tools"

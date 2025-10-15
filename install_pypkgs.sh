@@ -14,6 +14,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+source activate_venv.sh
+
 # Ensure proper python is selected.
 if [[ -d $packages_dir ]]; then
     echo "Install from $packages_dir"

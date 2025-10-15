@@ -2,7 +2,7 @@
 #####  Make HTS labels from Festival utts  #####
 ################################################
 
-FESTDIR="/afs/inf.ed.ac.uk/group/cstr/projects/phd/s1432486/work/test/merlin/tools/festival"
+FESTDIR=".../merlin/tools/festival"
 
 ./make_labels ./test/labels/ ./test/utts  $FESTDIR/examples/dumpfeats .
 

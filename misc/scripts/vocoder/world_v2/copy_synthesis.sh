@@ -1,6 +1,7 @@
 
+source ../../../../.env
 # top merlin directory
-merlin_dir="/afs/inf.ed.ac.uk/group/cstr/projects/phd/s1432486/work/test/merlin"
+merlin_dir="$MerlinDir"
 
 # tools directory
 world="${merlin_dir}/tools/bin/WORLD"

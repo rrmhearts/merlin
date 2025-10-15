@@ -58,9 +58,9 @@ import argparse
 from sys import argv, stderr
 from subprocess import check_call, PIPE
 from mean_variance_norm import MeanVarianceNorm
-from dotenv import load_dotenv, find_dotenv
+from dotenv import load_dotenv
 
-load_dotenv(find_dotenv())
+load_dotenv(override=True)
 # string constants for various shell calls
 STATE_NUM=5
 F = str(0.01)
@@ -73,11 +73,7 @@ VFLOORS = 'vFloors'
 
 ##
 HTKDIR=  os.getenv("HTKDIR")
-HCompV = os.path.join(HTKDIR, 'HCompV')
-HCopy  = os.path.join(HTKDIR, 'HCopy' )
-HERest = os.path.join(HTKDIR, 'HERest')
-HHEd   = os.path.join(HTKDIR, 'HHEd'  )
-HVite  = os.path.join(HTKDIR, 'HVite' )
+# print("HTKDIR: ", HTKDIR)
 
 class ForcedAlignment(object):
 
