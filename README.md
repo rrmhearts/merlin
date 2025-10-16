@@ -1,3 +1,5 @@
+[![Python application](https://github.com/rrmhearts/merlin/actions/workflows/python-app.yml/badge.svg)](https://github.com/rrmhearts/merlin/actions/workflows/python-app.yml)
+
 ## Merlin: The Neural Network (NN) based Speech Synthesis System
 
 This repository contains the Neural Network (NN) based Speech Synthesis System developed at the Centre for Speech Technology Research (CSTR), University of Edinburgh.
@@ -53,7 +55,15 @@ Getting started with Merlin
 
 To run the example system builds, see `egs/README.txt`
 
-As a first demo, please follow the scripts in `egs/slt_arctic` or `egs/build_your_own_voice/s1[_python]`
+As a first demo, please follow the scripts in `egs/slt_arctic` or `egs/build_your_own_voice/s1[_python]`. 
+The simpliest demo is to do the following:
+
+```sh
+cd egs/build_your_own_voice/s1_python
+python run_merlin_workflow.py --setup-data --train-tts --run-tts
+# The resulting wav files are then at
+cd experiments/slt_arctic/test_synthesis/wav
+```
 
 Now, you can also follow Josh Meyer's [blog post](http://jrmeyer.github.io/tts/2017/02/14/Installing-Merlin.html) for detailed instructions on how to install Merlin and build SLT demo voice (This blog post might be outdated, use with caution).
 

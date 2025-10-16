@@ -7,3 +7,4 @@ soundfile
 matplotlib==3.10.1
 scikit-learn==1.6.1
 python-dotenv
+numpy

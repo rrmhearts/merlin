@@ -104,7 +104,7 @@ import logging.config
 
 
 ## Similar speed to Tensorflow # jax, torch, tensorflow, openvino
-os.environ['KERAS_BACKEND'] = 'torch'
+# os.environ['KERAS_BACKEND'] = 'torch'
 
 # def load_covariance(var_file_dict, out_dimension_dict):
 #     var = {}

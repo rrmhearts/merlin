@@ -1,4 +1,6 @@
 #!/bin/bash
+# This script is not normally used in the installation of Merlin
+# It is required for egs/hybrid_sythesis/s1
 
 #########################################
 ######### Install Dependencies ##########
@@ -9,8 +11,10 @@ current_working_dir=$(pwd)
 tools_dir=${current_working_dir}/$(dirname $0)
 cd $tools_dir
 
+# Installed in ./compile_other_speech_tools.sh
 install_speech_tools=true
 install_festival=true
+# New to this script, requires above
 install_multisyn=true
 
 # 1. Get and compile speech tools

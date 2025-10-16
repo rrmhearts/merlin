@@ -37,6 +37,7 @@ egs/slt_arctic/
 
 
 # For festival build
+tools/multisyn_build/
 
 # Tools
 SPTK*
@@ -53,6 +54,7 @@ tools/postfilter
 tools/speech_tools
 tools/SPTK-3.9
 tools/REAPER/
+tools/festival
 
 # deps
 .deps/

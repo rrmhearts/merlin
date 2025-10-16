@@ -56,6 +56,7 @@ patch -p1 -N -d . < ../HTS-2.3alpha_for_HTK-3.4.1.patch
 
 echo "compiling HTK..."
 (
+    make clean
     ./configure --prefix=$PWD/build;
     make all;
     make install
