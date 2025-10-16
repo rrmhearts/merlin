@@ -20,7 +20,7 @@ source activate_venv.sh
 if [[ -d $packages_dir ]]; then
     echo "Install from $packages_dir"
     # install the packages from pkgs
-    python -m pip install torch torchvision torchaudio --no-index --find-links $packages_dir/
+    # python -m pip install torch torchvision torchaudio --no-index --find-links $packages_dir/
     python -m pip install -r requirements.txt --no-index --find-links $packages_dir/
 else
     echo "Install from network"
@@ -30,7 +30,7 @@ else
     tar -zcf wheelhouse.tar.gz pkgs/
 
     # install the packages in the regular way
-    python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    # python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
     python -m pip install -r requirements.txt
 
     echo "Creating wheelhouse..."
