@@ -54,7 +54,7 @@ if ! python3 --version | grep -q "Python 3\.10"; then  # Corrected check
         }
 
         # Sudo package requirements
-        sudo apt install python-is-python3 -y
+        sudo apt install python-is-python3 gawk -y
         sudo apt install gcc g++ make zip unzip autotools-dev cmake csh libtool -y
         sudo apt install build-essential pkg-config libncurses5-dev libncursesw5-dev -y
         sudo apt install libx11-dev libsndfile1-dev libcurses-ocaml libxml2-dev libxslt-dev -y

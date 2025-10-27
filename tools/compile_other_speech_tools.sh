@@ -35,9 +35,6 @@ if [ "$install_speech_tools" = true ]; then
     speech_tools_git=https://github.com/rrmhearts/speech_tools
     git clone $speech_tools_git 
 
-    # sed -i 's/\/\/int getch(void);/int getch(void);/g' ./speech_tools/include/EST_Token.h
-    # sed -i 's/\/\/EST_TokenStream \&getch(char \&C);/EST_TokenStream \&getch(char \&C);/g' ./speech_tools/include/EST_Token.h
-    # sed -i 's/char \*editline_history_file = ".editline_history"/extern char \*editline_history_file = ".editline_history"/g' ./speech_tools/siod/siodeditline.c
     echo "compiling speech tools..."
     (
         cd speech_tools;
@@ -57,9 +54,10 @@ export PATH=$ESTDIR/bin:$PATH
 # 2. Get and compile festival, download dicts and some voices
 if [ "$install_festival" = true ]; then
     echo "downloading festival..."
+    rm -rf festival
     festival_git=https://github.com/rrmhearts/festival.git
     git clone $festival_git
-    tar -xzf festival.tar.gz # using the code extraction caused errors.
+
     echo "compiling festival..."
     (
         cd festival;
@@ -86,7 +84,6 @@ if [ "$install_festvox" = true ]; then
 
     tar -czf festvox.tar.gz festvox/
     mv festvox.tar.gz tar.gz/ 2>/dev/null
-
 
     echo "compiling festvox..."
     (
@@ -125,7 +122,6 @@ if [ "$install_flite" = true ]; then
     git clone $flite_git
     tar -czf flite.tar.gz flite/
     mv flite.tar.gz tar.gz/ 2>/dev/null
-
 
     echo "compiling speech tools..."
     (
