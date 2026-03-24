@@ -16,6 +16,10 @@ Read the documentation at [cstr-edinburgh.github.io/merlin](https://cstr-edinbur
 
 Merlin is compatible with: __Python 3.10__ (See notes below).
 
+**Coffee is a proven love language.** If this has proven helpful,
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.paypal.com/paypalme/rrmhearts)
+
 Installation
 ------------
 Merlin uses the following dependencies:
